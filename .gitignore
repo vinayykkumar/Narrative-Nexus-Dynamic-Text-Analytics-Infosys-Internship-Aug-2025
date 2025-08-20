@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dylib
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Caches
+.cache/
+.pytype/
+.mypy_cache/
+pytest_cache/
+.pip-cache/
+
+# Transformers / HF
+huggingface/
+transformers_cache/
+
+# Project artifacts
+ml/__pycache__/
+ml/*.pkl
+ml/*.model
+ml/*.dict
+ml/t5_summarization_model/
+
+# Data archives (keep CSVs, ignore archives)
+data/*.zip
+data/*.tar
+data/*.tar.gz
