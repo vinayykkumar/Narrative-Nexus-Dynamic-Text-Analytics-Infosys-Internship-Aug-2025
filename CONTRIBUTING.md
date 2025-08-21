@@ -8,6 +8,81 @@ Thanks for contributing to AI Narrative Nexus! This guide explains our workflow 
 - Run the notebook or unit tests for your area before pushing.
 - Open a Pull Request (PR) with a clear description and checklist.
 
+## Collaborator onboarding: from invite to first PR
+
+1) Accept the GitHub invite (email or repo Settings > Collaborators) and ensure you can access the repo: `https://github.com/dipeshkumar123/ai-narrative-nexus`.
+
+2) Clone the repo and configure your identity (one-time):
+
+```powershell
+git clone https://github.com/dipeshkumar123/ai-narrative-nexus.git
+cd ai-narrative-nexus
+git config user.name "Your Name"
+git config user.email "you@example.com"
+```
+
+3) Create a feature branch off `main` for your work:
+
+```powershell
+git checkout -b feat/<your-part>
+```
+
+4) Set up your environment (Windows PowerShell):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r .\ml\requirements.txt
+```
+
+5) Run locally (pick what you need):
+
+- Notebook: open `ml/nlp_tasks.ipynb` and Run All relevant cells.
+- API: `python .\ml\app.py` or `.\.venv\Scripts\python.exe -m uvicorn ml.app:app --host 127.0.0.1 --port 8001`.
+
+6) Commit and push your branch, then open a PR:
+
+```powershell
+git add -A
+git commit -m "feat: add <short description>"
+git push -u origin feat/<your-part>
+# then open a PR in GitHub: compare feat/<your-part> -> main
+```
+
+7) Keep your branch up-to-date with main (pull before you push):
+
+```powershell
+git fetch origin
+git switch main
+git pull --rebase origin main
+git switch feat/<your-part>
+git rebase origin/main
+# resolve conflicts, then:
+git add <files>
+git rebase --continue
+git push --force-with-lease
+```
+
+### If you already have local code you want to bring in
+
+Option A (recommended): copy your files into this cloned repo folder, then commit and push on a new branch.
+
+Option B (if your folder isn’t a git repo yet):
+
+```powershell
+# inside your existing local code folder
+git init
+git remote add origin https://github.com/dipeshkumar123/ai-narrative-nexus.git
+git fetch origin
+git checkout -b feat/<your-part> origin/main
+# move/keep your code here, then:
+git add -A
+git commit -m "feat: import initial <your-part>"
+git push -u origin feat/<your-part>
+```
+
+Option C (advanced): if your code is in a separate git repo, you can add it as a remote, fetch, and cherry-pick commits. Ask a maintainer if you’d like help with this path.
+
 ## Prerequisites
 - Python 3.10+
 - Node/other stacks as required by `frontend/` or `backend/` (if applicable)
@@ -60,6 +135,24 @@ $body = @{ text = 'I loved this movie!' } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri 'http://localhost:8001/sentiment' -ContentType 'application/json' -Body $body
 ```
 
+## Typical daily workflow
+
+```powershell
+# Morning sync
+git fetch origin
+git switch main
+git pull --rebase origin main
+git switch feat/<your-part>
+git rebase origin/main
+
+# Do work, validate locally
+git add -A
+git commit -m "feat: <incremental change>"
+git push --force-with-lease
+
+# Open/refresh PR and request reviews
+```
+
 ## Pull Requests
 - Keep PRs small and focused; include:
   - What changed and why
@@ -93,6 +186,8 @@ Invoke-RestMethod -Method Post -Uri 'http://localhost:8001/sentiment' -ContentTy
 - PowerShell JSON errors: build a hashtable and pipe to `ConvertTo-Json`.
 - Missing models: run the notebook to (re)generate artifacts.
 - spaCy model missing: `python -m spacy download en_core_web_sm`.
+ - Large datasets: don’t commit big files to git; keep them in `data/` locally and add to `.gitignore` or use Git LFS.
+ - Conflicts during rebase: resolve files, `git add`, then `git rebase --continue`. If stuck: `git rebase --abort` and try again or ask for help.
 
 ## Questions
 Open a GitHub Discussion or Issue, or tag a maintainer in your PR.
