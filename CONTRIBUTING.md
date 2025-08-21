@@ -1,60 +1,98 @@
-# Contributing to AI Narrative Nexus
+# Contributing Guide
 
-Thanks for your interest in contributing! This guide explains setup, workflow, and PR expectations.
+Thanks for contributing to AI Narrative Nexus! This guide explains our workflow and how to submit changes confidently.
 
-## Project structure
-- `ml/nlp_tasks.ipynb` — trains/evaluates models (sentiment, summarization, topic modeling)
-- `ml/app.py` — FastAPI service exposing endpoints
-- `data/` — CSV datasets used by the notebook
+## TL;DR
+- Create a feature branch from `main`.
+- Keep changes focused; include tests/docs when relevant.
+- Run the notebook or unit tests for your area before pushing.
+- Open a Pull Request (PR) with a clear description and checklist.
+
+## Prerequisites
+- Python 3.10+
+- Node/other stacks as required by `frontend/` or `backend/` (if applicable)
+- Git installed and a GitHub account with access to the repo
 
 ## Setup
 ```powershell
-# from repo root
+# From repo root
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r .\ml\requirements.txt
-# optional, one-time
-python -m spacy download en_core_web_sm
 ```
 
-Run API locally:
+If you work on the API, make sure the saved artifacts exist (run `ml/nlp_tasks.ipynb` once). See `ml/README.md`.
+
+## Branching strategy
+- `main` is protected. Create branches off `main`:
+  - `feat/<short-title>` (new feature)
+  - `fix/<short-title>` (bug fix)
+  - `docs/<short-title>` (docs only)
+  - `chore/<short-title>` (tooling, config, etc.)
+
+Example:
+```powershell
+git checkout -b feat/summarization-batch
+```
+
+## Commit messages
+- Use conventional, short, imperative messages:
+  - `feat: add batching for summarization`
+  - `fix: guard against empty input in sentiment endpoint`
+  - `docs: expand README with troubleshooting`
+
+## Code style & quality
+- Python: follow PEP8 where practical. Prefer type hints.
+- Keep notebooks deterministic; clear stale cells and re-execute before commit.
+- Avoid committing large/binary files. Use `.gitignore`. Consider Git LFS for very large artifacts.
+
+## Running and testing
+- Notebook: `ml/nlp_tasks.ipynb` — run all sections related to your change, ensure no errors.
+- API:
 ```powershell
 python .\ml\app.py
 # or
 .\.venv\Scripts\python.exe -m uvicorn ml.app:app --host 127.0.0.1 --port 8001 --log-level info
 ```
-
-Quick smoke tests:
+- Smoke-tests (PowerShell):
 ```powershell
-Invoke-RestMethod -Method Get -Uri 'http://localhost:8001/health' | ConvertTo-Json -Depth 5
-
-$s_body = @{ text = 'this was amazing!' } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri 'http://localhost:8001/sentiment' -ContentType 'application/json' -Body $s_body | ConvertTo-Json -Depth 5
+$body = @{ text = 'I loved this movie!' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri 'http://localhost:8001/sentiment' -ContentType 'application/json' -Body $body
 ```
 
-To regenerate artifacts, open `ml/nlp_tasks.ipynb` and Run All. Expected outputs in `ml/`:
-- `sentiment_analysis_model.pkl`
-- `sentiment_analysis_vectorizer.pkl`
-- `t5_summarization_model/`
-- `topic_modeling_model.model`
-- `topic_modeling_dictionary.dict`
+## Pull Requests
+- Keep PRs small and focused; include:
+  - What changed and why
+  - Screenshots/outputs for notebook cells or API responses (when helpful)
+  - Any migration or setup steps
+- Link related issue(s) and add reviewers.
+- CI (if configured) must pass before merge.
 
-## Branching and commits
-- Branch from `main`: `feat/<topic>`, `fix/<topic>`, or `chore/<topic>`
-- Use Conventional Commits where practical (e.g., `feat: add ROUGE-Lsum metric`)
+## Review checklist (author)
+- [ ] Branch is up-to-date with `main`
+- [ ] Notebook cells re-run cleanly; outputs relevant and concise
+- [ ] No secrets or large data checked in
+- [ ] Docs updated (`README.md`, `ml/README.md`, comments)
+- [ ] Endpoint contracts unchanged or documented
 
-## PR checklist
-- [ ] Code runs locally without errors
-- [ ] Notebook cells execute cleanly end-to-end (if modified)
-- [ ] API endpoints smoke-tested
-- [ ] Docs updated (README/usage)
-- [ ] No large binaries committed (prefer samples or Git LFS)
+## Review checklist (reviewer)
+- [ ] Meets acceptance criteria / solves the problem
+- [ ] Code is readable and modular
+- [ ] Tests / outputs demonstrate correctness
+- [ ] No unnecessary files or debug code
+- [ ] Performance and error handling are acceptable
 
-## Reporting issues
-Please include repro steps, expected vs. actual, logs/errors, and scope/acceptance criteria for features.
+## Merging
+- Use “Squash and merge” for cleaner history unless otherwise agreed.
+- Delete branches after merging.
 
-## Security
-Do not commit secrets. Use environment variables or secret storage.
+## Release & tags (optional)
+- Use semantic versioning tags (e.g., `v0.1.0`) for milestones.
 
----
-Thanks for contributing!
+## Troubleshooting
+- PowerShell JSON errors: build a hashtable and pipe to `ConvertTo-Json`.
+- Missing models: run the notebook to (re)generate artifacts.
+- spaCy model missing: `python -m spacy download en_core_web_sm`.
+
+## Questions
+Open a GitHub Discussion or Issue, or tag a maintainer in your PR.

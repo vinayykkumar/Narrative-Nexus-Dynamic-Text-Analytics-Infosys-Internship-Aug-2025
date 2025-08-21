@@ -4,18 +4,15 @@ about: Suggest an idea for this project
 labels: enhancement
 ---
 
-## Problem / Motivation
-What problem are you trying to solve or what capability is missing?
+## Problem / Opportunity
+What problem would this feature solve? Who benefits?
 
 ## Proposed solution
-Describe the solution you'd like.
-
-## Alternatives considered
-Describe any alternative solutions or features you've considered.
+Describe the solution you'd like. Consider alternatives.
 
 ## Acceptance criteria
-- [ ] Criteria 1
-- [ ] Criteria 2
+- [ ] Criterion 1
+- [ ] Criterion 2
 
 ## Additional context
 Add any other context or screenshots about the feature request here.
