@@ -1,0 +1,43 @@
+{
+  "cleaning_date": "2025-08-22 17:40:41",
+  "cleaning_config": {
+    "lowercase": true,
+    "remove_special_chars": true,
+    "remove_punctuation": true,
+    "remove_stop_words": true,
+    "keep_negations": true,
+    "normalize_whitespace": true
+  },
+  "datasets_processed": 3,
+  "files_created": [
+    "BBC: ../data/cleaned\\bbc_news_cleaned.csv",
+    "CNN: ../data/cleaned\\cnn_dailymail_cleaned.csv",
+    "IMDB: ../data/cleaned\\imdb_reviews_cleaned.csv"
+  ],
+  "processing_summary": {
+    "BBC": {
+      "original_avg_length": 2262.936179775281,
+      "cleaned_avg_length": 1583.9150561797753,
+      "reduction_pct": 30.006198569105702,
+      "original_vocab": 43771,
+      "cleaned_vocab": 29309,
+      "vocab_reduction_pct": 33.04014073244843
+    },
+    "CNN": {
+      "original_avg_length": 2518.1262,
+      "cleaned_avg_length": 2517.9096,
+      "reduction_pct": 0.008601634024545658,
+      "original_vocab": 67664,
+      "cleaned_vocab": 67660,
+      "vocab_reduction_pct": 0.005911563017261764
+    },
+    "IMDB": {
+      "original_avg_length": 1310.572,
+      "cleaned_avg_length": 838.992,
+      "reduction_pct": 35.98276172541455,
+      "original_vocab": 32162,
+      "cleaned_vocab": 17808,
+      "vocab_reduction_pct": 44.63030906038182
+    }
+  }
+}
