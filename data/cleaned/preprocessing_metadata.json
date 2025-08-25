@@ -1,0 +1,11 @@
+{
+  "cleaning_date": "2025-08-25 17:38:00",
+  "day": "Day 8-9",
+  "objective": "Text cleaning: remove special characters, punctuation, stop words",
+  "files_created": [
+    "BBC: ../data/cleaned\\bbc_news_cleaned.csv",
+    "CNN: ../data/cleaned\\cnn_dailymail_cleaned.csv",
+    "IMDB: ../data/cleaned\\imdb_reviews_cleaned.csv"
+  ],
+  "next_step": "Week 3: Topic modeling with LDA/NMF"
+}

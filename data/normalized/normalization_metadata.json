@@ -1,0 +1,54 @@
+{
+  "normalization_date": "2025-08-25 17:41:46",
+  "day": "Day 10-11",
+  "objective": "Text normalization: stemming and lemmatization",
+  "methods_used": {
+    "stemming": "Porter Stemmer",
+    "lemmatization": "WordNet Lemmatizer with POS tagging"
+  },
+  "files_created": [
+    "BBC: ../data/normalized\\bbc_news_normalized.csv",
+    "CNN: ../data/normalized\\cnn_dailymail_normalized.csv",
+    "IMDB: ../data/normalized\\imdb_reviews_normalized.csv"
+  ],
+  "analysis_results": [
+    {
+      "dataset": "BBC",
+      "original_vocab": 5947,
+      "stemmed_vocab": 4235,
+      "lemmatized_vocab": 4669,
+      "stem_vocab_reduction": 28.787624012106942,
+      "lemma_vocab_reduction": 21.4898268034303,
+      "clean_avg_length": 1583.9150561797753,
+      "stem_avg_length": 1368.2161797752808,
+      "lemma_avg_length": 1470.7442696629214
+    },
+    {
+      "dataset": "CNN",
+      "original_vocab": 8999,
+      "stemmed_vocab": 6506,
+      "lemmatized_vocab": 7408,
+      "stem_vocab_reduction": 27.703078119791087,
+      "lemma_vocab_reduction": 17.679742193577063,
+      "clean_avg_length": 2517.9096,
+      "stem_avg_length": 2209.6854,
+      "lemma_avg_length": 2386.8502
+    },
+    {
+      "dataset": "IMDB",
+      "original_vocab": 4648,
+      "stemmed_vocab": 3641,
+      "lemmatized_vocab": 3914,
+      "stem_vocab_reduction": 21.665232358003443,
+      "lemma_vocab_reduction": 15.79173838209983,
+      "clean_avg_length": 838.998,
+      "stem_avg_length": 740.469,
+      "lemma_avg_length": 795.825
+    }
+  ],
+  "next_step": "Topic modeling and sentiment analysis with normalized text",
+  "recommendations": {
+    "stemming": "Faster processing, good for large-scale analysis",
+    "lemmatization": "Better semantic preservation, recommended for accuracy"
+  }
+}
