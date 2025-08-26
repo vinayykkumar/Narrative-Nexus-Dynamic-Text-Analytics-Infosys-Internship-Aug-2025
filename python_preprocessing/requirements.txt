@@ -1,0 +1,23 @@
+# AI Narrative Nexus - Python Preprocessing Requirements
+# Verified working versions (as of setup)
+
+# Core data processing libraries
+pandas==2.3.2
+numpy==2.3.2
+
+# Machine learning framework
+scikit-learn==1.7.1
+
+# Natural language processing
+nltk==3.9.1
+
+# Model serialization and utilities
+joblib==1.4.2
+
+# Optional dependencies for development
+# matplotlib>=3.5.0    # For data visualization
+# seaborn>=0.11.0      # For advanced plotting  
+# jupyter>=1.0.0       # For notebook development
+# textblob>=0.17.1     # Alternative NLP library
+# spacy>=3.4.0         # Advanced NLP (if needed)
+# transformers>=4.20.0 # Transformer models (if needed)
