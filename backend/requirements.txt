@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+numpy
+scikit-learn
+spacy
+nltk
+transformersversio
+sentence-transformers
+faiss-cpu
+python-docx
+openpyxl
+gensim
+textblob
+torch
+pydantic

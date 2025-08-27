@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.glass {
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(18px) brightness(1.17);
+  border-radius: 24px;
+  box-shadow: 0 7px 48px #a855f783, 0 3px 34px #00fff7a6;
+  border: 2.2px solid rgba(180,125,255,0.14);
+}
+
+.animated-gradient-text {
+  background-size: 300% 100%!important;
+  animation: fancyGradient 2.6s cubic-bezier(.76,.19,.8,.82) infinite alternate;
+}
+@keyframes fancyGradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.neon-flicker {
+  animation: neonFlicker 1.94s infinite alternate;
+  will-change: opacity,box-shadow;
+}
+@keyframes neonFlicker {
+  0%,100% { opacity: 1; box-shadow: 0 0 30px #a855f7,0 0 80px #00fff7b0; }
+  13% { opacity:.83;}
+  20% { opacity:.6;}
+  25% { opacity:.94;}
+  46% { opacity:.8;}
+  80% {opacity: 1;}
+}
