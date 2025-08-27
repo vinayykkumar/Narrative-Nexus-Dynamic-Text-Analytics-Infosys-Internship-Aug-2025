@@ -1,3 +1,5 @@
+# Narrative-Nexus-Dynamic-Text-Analytics-Infosys-Internship-Aug-2025
+
 # 🚀 Smart Dataset Analyzer
 
 **AI-powered text analysis platform** — upload `.txt`, `.csv`, or `.docx` files to instantly get **sentiment analysis**, **topic modeling**, **key terms**, and **downloadable PDF reports**.
@@ -138,3 +140,4 @@ If you like this project, give it a ⭐ on GitHub
 git add README.md
 git commit -m "Complete README with setup and documentation"
 git push origin main
+
