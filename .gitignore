@@ -1,0 +1,13 @@
+# Ignore CSV files
+backend/twitter_tweets.csv
+backend/combined_data.csv
+backend/reviews_ratings.csv
+backend/articles.csv
+backend/bbc_news.csv
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore environment files
+.env
