@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Data Analysis Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0; /* bg-gray-200 */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8; /* bg-gray-400 */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* bg-gray-600 */
+        }
+
+        /* Active navigation link styling */
+        .nav-link.active {
+            background: linear-gradient(to right, #6366f1, #8b5cf6); /* Indigo to Violet */
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            transform: scale(1.02);
+        }
+        /* Dashboard chart placeholders - simple SVG examples */
+        .chart-placeholder {
+            width: 100%;
+            height: 180px;
+            background-color: #f0f4f8; /* light blue-gray */
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b; /* slate-500 */
+            font-size: 0.9rem;
+            text-align: center;
+            border: 1px dashed #cbd5e1; /* slate-300 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-purple-50 min-h-screen text-gray-800 flex flex-col lg:flex-row">
+
+    <nav class="bg-white shadow-xl lg:w-64 w-full p-6 lg:p-8 flex flex-col space-y-4 lg:space-y-6 flex-shrink-0 lg:h-screen lg:rounded-r-3xl rounded-b-3xl lg:rounded-bl-none overflow-auto">
+        <div class="flex items-center justify-center lg:justify-start mb-6">
+            <i class="fas fa-brain text-5xl text-indigo-600 mr-3 animate-pulse"></i>
+            <h1 class="text-3xl font-bold text-gray-900 hidden lg:block">Narrative NeXus</h1>
+        </div>
+
+        <button class="nav-link flex items-center p-4 rounded-xl text-lg font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg active" data-section="upload">
+            <i class="fas fa-cloud-upload-alt mr-4 text-xl"></i>
+            Upload Data
+        </button>
+        <button class="nav-link flex items-center p-4 rounded-xl text-lg font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg" data-section="reports">
+            <i class="fas fa-file-alt mr-4 text-xl"></i>
+            Reports
+        </button>
+        <button class="nav-link flex items-center p-4 rounded-xl text-lg font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg" data-section="insights">
+            <i class="fas fa-lightbulb mr-4 text-xl"></i>
+            Insights
+        </button>
+    </nav>
+
+    <main class="flex-1 p-6 lg:p-10 overflow-y-auto">
+        <h2 class="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-8 tracking-tight leading-tight">
+            Welcome to <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">Narrative NeXus</span>
+        </h2>
+        <p class="text-xl text-gray-600 mb-10 max-w-2xl">
+            Unleash the power of your data with intelligent analytics and insightful reporting.
+        </p>
+
+        <div id="upload-section" class="content-section active">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 mb-8">
+                <h3 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-file-upload text-indigo-500 mr-3"></i> Upload Your Data
+                </h3>
+                <p class="text-gray-600 mb-6">Drag & drop your files below, or click to browse. We support a wide range of formats for comprehensive analysis.</p>
+
+                <div id="drop-area" class="border-4 border-dashed border-indigo-300 rounded-2xl p-10 text-center transition-all duration-300 ease-in-out hover:border-indigo-500 hover:bg-indigo-50 cursor-pointer mb-8 shadow-inner">
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <i class="fas fa-cloud-upload-alt text-7xl text-indigo-400 mb-4 animate-bounce-slow"></i>
+                        <p class="text-2xl font-semibold text-gray-700">Drag & Drop Files Here</p>
+                        <p class="text-lg text-gray-500">or</p>
+                        <input type="file" id="fileInput" multiple class="hidden">
+                        <label for="fileInput" class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer">
+                            <i class="fas fa-folder-open mr-3"></i> Browse Files
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <h4 class="text-2xl font-bold text-gray-800 mb-4">Supported File Types:</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-alt text-4xl text-blue-500 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Text (.txt, .csv)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-word text-4xl text-blue-700 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Documents (.docx, .pdf)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-image text-4xl text-green-500 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Images (.jpg, .png)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-video text-4xl text-red-500 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Videos (.mp4, .mov)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-archive text-4xl text-yellow-500 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Archives (.zip)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-code text-4xl text-purple-500 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">JSON (.json)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-excel text-4xl text-green-700 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Excel (.xlsx, .xls)</span>
+                        </div>
+                        <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <i class="fas fa-file-powerpoint text-4xl text-orange-600 mb-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Presentations (.ppt, .pptx)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="uploaded-files-preview" class="mt-8">
+                    <h4 class="text-2xl font-bold text-gray-800 mb-4" id="uploaded-files-heading" style="display: none;">Uploaded Files:</h4>
+                    <ul id="file-list" class="space-y-3">
+                        </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="reports-section" class="content-section hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 mb-8">
+                <h3 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-clipboard-list text-green-500 mr-3"></i> Comprehensive Reports
+                </h3>
+                <p class="text-gray-600 mb-6">Detailed summaries and findings generated from your uploaded data, ready for export or deeper dive.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Executive Summary Report</h4>
+                        <p class="text-gray-600 text-sm mb-4">A high-level overview of key insights and recommendations, perfect for stakeholders.</p>
+                        <button class="px-5 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                            View Report <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Detailed Data Analysis</h4>
+                        <p class="text-gray-600 text-sm mb-4">In-depth breakdown of all processed data, including statistical findings and granular details.</p>
+                        <button class="px-5 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                            View Report <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Sentiment & Trend Analysis</h4>
+                        <p class="text-gray-600 text-sm mb-4">Comprehensive report on sentiment patterns, emerging trends, and predictive insights.</p>
+                        <button class="px-5 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                            View Report <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Customizable Export Options</h4>
+                        <p class="text-gray-600 text-sm mb-4">Choose your preferred format (PDF, Excel, CSV) for easy sharing and further analysis.</p>
+                        <button class="px-5 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                            Export Options <i class="fas fa-download ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="insights-section" class="content-section hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 mb-8">
+                <h3 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-lightbulb text-yellow-500 mr-3"></i> Actionable Insights
+                </h3>
+                <p class="text-gray-600 mb-6">Discover hidden opportunities and potential risks identified by our AI, tailored to your data.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Opportunity Spotlight</h4>
+                        <p class="text-gray-600 text-sm mb-4">"Our analysis indicates a 15% untapped market segment in [Specific Area]. Recommend targeting with [Strategy]."</p>
+                        <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-3 py-1 rounded-full font-semibold">High Impact</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Risk Assessment Alert</h4>
+                        <p class="text-gray-600 text-sm mb-4">"Potential decline in [Key Metric] by Q4 due to [Factor]. Consider reallocating resources."</p>
+                        <span class="inline-block bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full font-semibold">Urgent Action</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">Performance Benchmark</h4>
+                        <p class="text-gray-600 text-sm mb-4">"Your operational efficiency metrics are 10% above industry average. Leverage this strength."</p>
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-semibold">Positive Trend</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h4 class="text-xl font-semibold mb-3 text-gray-700">User Behavior Anomaly</h4>
+                        <p class="text-gray-600 text-sm mb-4">"Identified unusual user engagement patterns in [Section]. Investigate potential user experience issues."</p>
+                        <span class="inline-block bg-purple-100 text-purple-800 text-xs px-3 py-1 rounded-full font-semibold">Requires Review</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('fileInput');
+            const fileList = document.getElementById('file-list');
+            const uploadedFilesHeading = document.getElementById('uploaded-files-heading');
+
+            // --- Navigation Logic ---
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Remove active class from all links
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    // Add active class to clicked link
+                    e.currentTarget.classList.add('active');
+
+                    // Hide all content sections
+                    contentSections.forEach(section => section.classList.add('hidden'));
+                    // Show the corresponding content section
+                    const targetSectionId = e.currentTarget.dataset.section + '-section';
+                    document.getElementById(targetSectionId).classList.remove('hidden');
+                });
+            });
+
+            // --- Drag & Drop Logic ---
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('border-indigo-600', 'bg-indigo-100'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('border-indigo-600', 'bg-indigo-100'), false);
+            });
+
+            dropArea.addEventListener('drop', handleDrop, false);
+            fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            function handleFiles(files) {
+                fileList.innerHTML = ''; // Clear previous list
+                if (files.length > 0) {
+                    uploadedFilesHeading.style.display = 'block'; // Show heading
+                } else {
+                    uploadedFilesHeading.style.display = 'none'; // Hide heading if no files
+                }
+
+                [...files].forEach(file => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'flex items-center p-3 bg-gray-50 rounded-lg shadow-sm text-gray-700';
+
+                    let iconClass = 'fas fa-file text-gray-500'; // Default icon
+                    const fileName = file.name.toLowerCase();
+
+                    if (fileName.endsWith('.txt') || fileName.endsWith('.csv')) {
+                        iconClass = 'fas fa-file-alt text-blue-500';
+                    } else if (fileName.endsWith('.docx') || fileName.endsWith('.pdf')) {
+                        iconClass = 'fas fa-file-word text-blue-700';
+                    } else if (fileName.endsWith('.jpg') || fileName.endsWith('.png') || fileName.endsWith('.jpeg')) {
+                        iconClass = 'fas fa-file-image text-green-500';
+                    } else if (fileName.endsWith('.mp4') || fileName.endsWith('.mov')) {
+                        iconClass = 'fas fa-file-video text-red-500';
+                    } else if (fileName.endsWith('.zip')) {
+                        iconClass = 'fas fa-file-archive text-yellow-500';
+                    } else if (fileName.endsWith('.json')) {
+                        iconClass = 'fas fa-file-code text-purple-500';
+                    } else if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
+                        iconClass = 'fas fa-file-excel text-green-700';
+                    } else if (fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) {
+                        iconClass = 'fas fa-file-powerpoint text-orange-600';
+                    }
+
+                    listItem.innerHTML = `
+                        <i class="${iconClass} text-xl mr-3"></i>
+                        <span>${file.name}</span>
+                        <span class="ml-auto text-sm text-gray-500">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    `;
+                    fileList.appendChild(listItem);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
