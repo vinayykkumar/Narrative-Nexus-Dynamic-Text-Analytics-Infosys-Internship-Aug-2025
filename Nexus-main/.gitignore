@@ -1,0 +1,76 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+python_preprocessing/venv/
+
+# Large dataset files (should not be in version control)
+/dataset/*.csv
+/dataset/*.tsv
+/dataset/*.json
+/dataset/**/*.csv
+/dataset/**/*.tsv
+/dataset/**/*.json
+/dataset/**/*.txt
+*.zip
+*.tar.gz
+*.rar
+
+# ML Processing outputs (can be regenerated)
+*.pkl
+*.joblib
+*.npy
+/python_preprocessing/processed_data/*.npy
+/python_preprocessing/processed_data/*.pkl
+/python_preprocessing/processed_data/*.joblib
+/python_preprocessing/trained_models/*.pkl
+/python_preprocessing/trained_models/*.joblib
+/preprocessed_data/
+/processed_outputs/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation temp files
+*_TEMP.md
+*_BACKUP.md
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
