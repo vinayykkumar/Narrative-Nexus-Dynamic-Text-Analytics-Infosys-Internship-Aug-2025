@@ -1,0 +1,80 @@
+{
+    "BBC": {
+        "tokens_clean": {
+            "count": 2225,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_stemmed": {
+            "count": 2225,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_lemmatized": {
+            "count": 2225,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        }
+    },
+    "CNN": {
+        "tokens_clean": {
+            "count": 5000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_stemmed": {
+            "count": 5000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_lemmatized": {
+            "count": 5000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        }
+    },
+    "IMDB": {
+        "tokens_clean": {
+            "count": 1000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_stemmed": {
+            "count": 1000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        },
+        "tokens_lemmatized": {
+            "count": 1000,
+            "avg_len": 0.0,
+            "p50_len": 0.0,
+            "p90_len": 0.0,
+            "p95_len": 0.0,
+            "max_len": 0
+        }
+    }
+}
