@@ -1,73 +1,149 @@
-# Welcome to your Lovable project
+🧠 Smart Insights
 
-## Project info
+A modern platform to summarize data and provide actionable insights efficiently.
 
-**URL**: https://lovable.dev/projects/eac64bae-084a-455c-aed0-9dc3297672fa
+📋 Table of Contents
 
-## How can I edit this code?
+Project Overview
 
-There are several ways of editing your application.
+Features
 
-**Use Lovable**
+Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eac64bae-084a-455c-aed0-9dc3297672fa) and start prompting.
+Quick Start
 
-Changes made via Lovable will be committed automatically to this repo.
+Detailed Setup
 
-**Use your preferred IDE**
+Usage Guide
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Project Structure
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Development
 
-Follow these steps:
+Contributing
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+🎯 Project Overview
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Smart Insights is a modern web application designed to summarize textual or structured data and provide users with clear, actionable insights.
 
-# Step 3: Install the necessary dependencies.
-npm i
+It leverages a React + Vite frontend, modern UI components, and a responsive design, making it lightweight, fast, and developer-friendly.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+✨ Features
+
+📄 Text Summarization → Generate concise, accurate summaries from large content blocks.
+
+📊 Data Insights → Extract key highlights, trends, and actionable metrics.
+
+🎨 Modern UI → Built using shadcn-ui + Tailwind CSS for a seamless experience.
+
+⚡ Lightning Fast → Powered by Vite for near-instant builds and hot reloading.
+
+📱 Fully Responsive → Optimized for mobile, tablet, and desktop.
+
+🛠 Technology Stack
+Category	Technology
+Framework	React + Vite
+Language	TypeScript
+Styling	Tailwind CSS
+UI Components	shadcn-ui
+Icons	Lucide React
+Package Manager	npm
+🚀 Quick Start
+Prerequisites
+
+Node.js (v18+ recommended)
+
+npm (comes with Node)
+
+Git
+
+1-Minute Setup
+# Clone the repository
+git clone https://github.com/<your-username>/SmartInsight.git
+cd SmartInsight
+
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
-```
 
-**Edit a file directly in GitHub**
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Now open http://localhost:5173
+ in your browser.
 
-**Use GitHub Codespaces**
+📖 Detailed Setup
+1. Clone the Repository
+git clone https://github.com/<your-username>/SmartInsight.git
+cd SmartInsight
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2. Install Dependencies
+npm install
 
-## What technologies are used for this project?
+3. Start Development
+npm run dev
 
-This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Your app will start with hot reloading enabled.
 
-## How can I deploy this project?
+4. Build for Production
+npm run build
+npm run preview
 
-Simply open [Lovable](https://lovable.dev/projects/eac64bae-084a-455c-aed0-9dc3297672fa) and click on Share -> Publish.
+📚 Usage Guide
 
-## Can I connect a custom domain to my Lovable project?
+Open the app in your browser.
 
-Yes, you can!
+Input data or upload files.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Generate summaries and insights in seconds.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+View results in an intuitive, responsive interface.
+
+📁 Project Structure
+SmartInsight/
+│
+├── public/                # Static assets
+├── src/                   # Application source code
+│   ├── components/        # Reusable components
+│   ├── pages/             # Page-level components
+│   ├── hooks/             # Custom React hooks
+│   ├── styles/            # Global styles
+│   ├── utils/             # Helper functions
+│   ├── App.tsx            # Root app component
+│   └── main.tsx           # Entry point
+│
+├── package.json           # Project dependencies
+├── tsconfig.json          # TypeScript configuration
+├── tailwind.config.js     # Tailwind configuration
+├── vite.config.js         # Vite configuration
+└── README.md              # Project documentation
+
+🧑‍💻 Development
+
+Start development → npm run dev
+
+Build production version → npm run build
+
+Preview production build → npm run preview
+
+🤝 Contributing
+
+Fork the repo.
+
+Create your feature branch:
+
+git checkout -b feature/amazing-feature
+
+
+Commit your changes:
+
+git commit -m "Add amazing feature"
+
+
+Push to the branch:
+
+git push origin feature/amazing-feature
+
+
+Open a pull request.
