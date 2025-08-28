@@ -21,5 +21,5 @@ def lemmatize_json(input_file, output_file, batch_size=500):
 
 if _name_ == "_main_":
     input_file = r"C:\Users\Bharath94911\Downloads\archive (5).zip\iris.json"
-    output_file = r"C:\Users\Bharath94911\Downloads\archive (5).zip\lemmatized_iris.json"
+    output_file = r"C:\Users\Bharath94911\Downloads\archive (5).zip\tokenized_iris.json"
     lemmatize_json(input_file, output_file, batch_size=500)
