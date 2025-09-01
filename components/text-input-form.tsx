@@ -11,6 +11,7 @@ import { FileUpload } from "@/components/file-upload"
 import { DataSourceConnector } from "@/components/data-source-connector"
 import { AnalysisOptions } from "@/components/analysis-options"
 import { FileText, Type, Database, ArrowRight, Loader2 } from "lucide-react"
+import { backendAPI } from "@/lib/api/backend-client"
 
 export function TextInputForm() {
   const [textInput, setTextInput] = useState("")
@@ -23,21 +24,68 @@ export function TextInputForm() {
     
     setIsAnalyzing(true)
     
-    // Store analysis data in localStorage for demo purposes
-    const analysisData = {
-      input: textInput,
-      timestamp: new Date().toISOString(),
-      type: activeTab,
+    try {
+      let preprocessingResult = null;
+      
+      // Perform data preprocessing if we have text input
+      if (activeTab === "text" && textInput.trim()) {
+        console.log("🚀 Starting data preprocessing...");
+        console.log("📝 Text length:", textInput.length, "characters");
+        console.log("⚙️ Preprocessing options:", {
+          remove_stopwords: true,
+          use_lemmatization: true,
+          use_stemming: false,
+          min_token_length: 2,
+          max_token_length: 50
+        });
+        
+        // Call the backend preprocessing API
+        preprocessingResult = await backendAPI.preprocessText(
+          textInput,
+          {
+            remove_stopwords: true,
+            use_lemmatization: true,
+            use_stemming: false,
+            min_token_length: 2,
+            max_token_length: 50
+          }
+        );
+        
+        console.log("✅ Preprocessing completed successfully!");
+        console.log("📊 Results:", preprocessingResult);
+      }
+      
+      // Store analysis data in localStorage for demo purposes
+      const analysisData = {
+        input: textInput,
+        preprocessingResult: preprocessingResult,
+        timestamp: new Date().toISOString(),
+        type: activeTab,
+      }
+      localStorage.setItem('currentAnalysis', JSON.stringify(analysisData))
+      
+      setIsAnalyzing(false)
+      
+      // Navigate to processing page
+      router.push('/processing')
+      
+    } catch (error) {
+      console.error("Error during preprocessing:", error);
+      setIsAnalyzing(false);
+      
+      // Store analysis data even if preprocessing fails
+      const analysisData = {
+        input: textInput,
+        preprocessingResult: null,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        timestamp: new Date().toISOString(),
+        type: activeTab,
+      }
+      localStorage.setItem('currentAnalysis', JSON.stringify(analysisData))
+      
+      // Navigate to processing page anyway (it can show the error)
+      router.push('/processing')
     }
-    localStorage.setItem('currentAnalysis', JSON.stringify(analysisData))
-    
-    // Brief delay to show loading state
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    
-    setIsAnalyzing(false)
-    
-    // Navigate to processing page
-    router.push('/processing')
   }
 
   const canAnalyze = textInput.trim().length > 0 || activeTab !== "text"
@@ -105,7 +153,7 @@ export function TextInputForm() {
             <div>
               <h3 className="font-serif font-semibold mb-1">Ready to Analyze</h3>
               <p className="text-sm text-muted-foreground">
-                Your text will be processed using advanced NLP algorithms to extract insights.
+                Your text will be preprocessed (cleaned, tokenized, normalized) and then analyzed using advanced NLP algorithms to extract insights.
               </p>
             </div>
             <Button
@@ -117,7 +165,7 @@ export function TextInputForm() {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing...
+                  Processing & Analyzing...
                 </>
               ) : (
                 <>

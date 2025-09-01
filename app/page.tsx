@@ -66,12 +66,6 @@ export default function HomePage() {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
-            <Link href="/preprocessing">
-              <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
-                Data Preprocessing
-                <Zap className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
@@ -145,18 +139,6 @@ export default function HomePage() {
                 <CardTitle className="font-serif">Interactive Dashboards</CardTitle>
                 <CardDescription>
                   Visualize insights with word clouds, charts, and comprehensive reports
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-border hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-6 h-6 text-secondary" />
-                </div>
-                <CardTitle className="font-serif">Data Preprocessing</CardTitle>
-                <CardDescription>
-                  Clean, normalize, and tokenize text data with advanced preprocessing pipelines
                 </CardDescription>
               </CardHeader>
             </Card>

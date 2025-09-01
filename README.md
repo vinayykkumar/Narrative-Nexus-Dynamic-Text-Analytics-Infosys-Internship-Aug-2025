@@ -16,14 +16,6 @@ AI Narrative Nexus is an 8-week development project aimed at creating a dynamic 
 - **Interactive Visualizations**: Word clouds, sentiment distribution, topic graphs
 - **Comprehensive Reporting**: Actionable insights and recommendations
 
-### Project Timeline
-- **Week 1-2**: ✅ Data Collection & Preprocessing (COMPLETE)
-- **Week 3**: Topic Modeling Implementation
-- **Week 4**: Sentiment Analysis
-- **Week 5**: Insights Generation & Summarization
-- **Week 6-7**: Visualization & Reporting
-- **Week 8**: Final Evaluation & Documentation
-
 
 
 
