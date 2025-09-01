@@ -1,0 +1,7 @@
+[theme]
+base="dark"
+primaryColor="#4CAF50"         # Green SaaS accent
+backgroundColor="#0E1117"      # Dark background
+secondaryBackgroundColor="#1E1E26"
+textColor="#FFFFFF"            # White text
+font="sans serif"
