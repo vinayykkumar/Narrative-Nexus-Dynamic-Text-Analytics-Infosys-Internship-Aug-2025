@@ -18,6 +18,10 @@ python -m venv .venv
 pip install -r .\ml\requirements.txt
 ```
 
+3) Open the notebook
+
+- Open `ml/narrative_nexus.ipynb` in VS Code and Run All to reproduce training and artifacts.
+
 2) Run the API
 
 ```powershell
@@ -25,7 +29,3 @@ python .\ml\app.py
 # or
 .\.venv\Scripts\python.exe -m uvicorn ml.app:app --host 127.0.0.1 --port 8001 --log-level info
 ```
-
-3) Open the notebook
-
-- Open `ml/nlp_tasks.ipynb` in VS Code and Run All to reproduce training and artifacts.

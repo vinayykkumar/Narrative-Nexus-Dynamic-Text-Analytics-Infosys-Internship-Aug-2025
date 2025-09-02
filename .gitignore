@@ -23,7 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 *.pdf
-data
+# Data folder - exclude processed data, keep original datasets
+data/cleaned/
+data/normalized/
+data/final/
+data/processed/
+data/topic_models/
+data/tokenized/
+data/*_week*.csv
+data/*_preprocessed*.csv
+data/*_cleaned*.csv
+data/*_normalized*.csv
+data/*_lemmatized*.csv
+
+# Keep original datasets (these will be tracked)
+!data/bbc-text.csv
+!data/cnn_dailymail.csv  
+!data/imdb-dataset.csv
 
 # Python
 __pycache__/
