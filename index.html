@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Analysis Platform - Data Upload</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <div class="container">
+        >
+        <header class="header">
+            <h1 class="header__title">🔍 Text Analysis Platform</h1>
+            <p class="header__subtitle">Upload your text files to begin comprehensive analysis</p>
+        </header>
+
+        
+        <main class="upload-section">
+            
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-zone__content">
+                    <div class="upload-zone__icon">📁</div>
+                    <h3 class="upload-zone__title">Drag & Drop Files Here</h3>
+                    <p class="upload-zone__subtitle">or click to browse files</p>
+                    <div class="upload-zone__info">
+                        
+                        <span class="upload-zone__formats">✅ Supported: TXT, DOCX, PDF, PPT, CSV, DOC</span>
+                        <span class="upload-zone__limits">📏 Max 5MB per file • 20MB total</span>
+                    </div>
+                    <button class="btn btn--primary upload-zone__button" type="button" id="browseButton">
+                        📂 Choose Files
+                    </button>
+                </div>
+                
+                <input type="file" id="fileInput" multiple accept=".txt,.csv,.docx,.pdf,.doc,.ppt" style="display: none;">
+            </div>
+
+            
+            <div class="upload-status" id="uploadStatus">
+                <div class="status-message" id="statusMessage">
+                    <p>No files uploaded yet. Select files to get started!</p>
+                </div>
+            </div>
+
+            
+            <div class="files-container" id="filesContainer">
+                <div class="files-header">
+                    <h3>📋 Uploaded Files</h3>
+                    <div class="files-actions">
+                        <button class="btn btn--secondary" id="clearAllButton" disabled>🗑️ Clear All</button>
+                        <button class="btn btn--success" id="startAnalysisButton" disabled>🚀 Start Analysis</button>
+                    </div>
+                </div>
+                <div class="files-list" id="filesList">
+                    ->
+                </div>
+                <div class="files-summary" id="filesSummary">
+                    <span>Total: <strong id="totalFiles">0 files</strong></span>
+                    <span>Size: <strong id="totalSize">0 bytes</strong></span>
+                </div>
+            </div>
+
+            
+            <div class="file-info-grid">
+                <div class="file-info-card">
+                    <div class="file-info-card__icon">📄</div>
+                    <h4 class="file-info-card__title">TXT Files</h4>
+                    <p class="file-info-card__desc">Plain text files containing unstructured text data.</p>
+                    <small class="file-info-card__examples">Articles, reviews, social media posts</small>
+                </div>
+                <div class="file-info-card">
+                    <div class="file-info-card__icon">📊</div>
+                    <h4 class="file-info-card__title">CSV Files</h4>
+                    <p class="file-info-card__desc">Structured data with text columns for analysis.</p>
+                    <small class="file-info-card__examples">Customer feedback, survey responses</small>
+                </div>
+                <div class="file-info-card">
+                    <div class="file-info-card__icon">📝</div>
+                    <h4 class="file-info-card__title">DOC/DOCX Files</h4>
+                    <p class="file-info-card__desc">Microsoft Word documents with formatted text.</p>
+                    <small class="file-info-card__examples">Reports, documents, structured content</small>
+                </div>
+                 
+                <div class="file-info-card">
+                    <div class="file-info-card__icon">📕</div>
+                    <h4 class="file-info-card__title">PDF Files</h4>
+                    <p class="file-info-card__desc">Portable Document Format files, preserving formatting.</p>
+                    <small class="file-info-card__examples">Manuals, eBooks, official documents</small>
+                </div>
+                <div class="file-info-card">
+                    <div class="file-info-card__icon">🖥️</div>
+                    <h4 class="file-info-card__title">PPT Files</h4>
+                    <p class="file-info-card__desc">Microsoft PowerPoint presentations for slide-based content.</p>
+                    <small class="file-info-card__examples">Lectures, business presentations, slideshows</small>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    
+    <div class="modal" id="confirmModal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirm Action</h3>
+            <p id="modalMessage">Are you sure?</p>
+            <div class="modal-actions">
+                <button class="btn btn--secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn--danger" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+
+    
+    <footer class="footer">
+        <p>Made by Team-3: Koustubh, Shashank, and Manisha</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Virtual Environment
+.venv/
+__pycache__/
+
+# NLTK Data
+nltk_data/
+
+# Datasets (Optional, if they are large)
+*.csv
+
+# Saved models and vectorizers
+*.joblib
