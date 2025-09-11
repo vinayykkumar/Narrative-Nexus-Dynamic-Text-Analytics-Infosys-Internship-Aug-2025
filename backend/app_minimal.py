@@ -1370,6 +1370,210 @@ def preprocess_text_simple(text: str, options: Dict = None) -> Dict:
     }
 
 # ============================================================================
+# SESSION ANALYSIS ENDPOINTS
+# ============================================================================
+
+@app.post("/analyze/session/{session_id}")
+async def analyze_session(session_id: str, analysis_options: Dict = None):
+    """
+    Run complete analysis pipeline on stored session data
+    """
+    try:
+        logger.info(f"🚀 Starting complete analysis for session: {session_id}")
+        
+        if not ARCHITECTURE_MODULES_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Architecture modules not available")
+        
+        # Get stored session data
+        session_data = text_storage.get_session_data(session_id)
+        
+        # Get the actual text documents for this session
+        texts = text_storage.get_session_documents(session_id)
+        if not texts:
+            # Fallback: try to get processed texts directly 
+            processed_texts = text_storage.get_processed_texts(session_id)
+            if processed_texts:
+                texts = [pt.get('processed_text', pt.get('original_text', '')) for pt in processed_texts]
+                logger.info(f"📚 Loaded {len(texts)} texts from processed_texts table")
+            else:
+                # Final fallback: check if session exists in processed_texts table
+                import sqlite3
+                conn = sqlite3.connect(text_storage.db_path)
+                cursor = conn.cursor()
+                cursor.execute('SELECT processed_text FROM processed_texts WHERE session_id = ? LIMIT 1000', (session_id,))
+                rows = cursor.fetchall()
+                conn.close()
+                if rows:
+                    texts = [row[0] for row in rows if row[0] and len(row[0].strip()) > 10]
+                    logger.info(f"📚 Loaded {len(texts)} texts directly from database")
+        
+        if not texts or len(texts) == 0:
+            raise HTTPException(status_code=404, detail=f"No texts found for session {session_id}")
+        
+        logger.info(f"📊 Found {len(texts)} documents for analysis in session {session_id}")
+        
+        if len(texts) < 2:
+            logger.warning(f"⚠️ Session {session_id} has {len(texts)} texts, need at least 2 for analysis")
+            # For single text, create a simple analysis
+            if len(texts) == 1:
+                texts.append(texts[0][:len(texts[0])//2])  # Split the text in half
+            # For single text, create a simple analysis
+            if len(texts) == 1:
+                texts.append(texts[0][:len(texts[0])//2])  # Split the text in half
+        
+        logger.info(f"📊 Analyzing {len(texts)} documents for session {session_id}")
+        
+        # 1. Run Topic Modeling
+        logger.info("🎯 Step 1: Running topic modeling...")
+        topic_input = TopicModelingInput(
+            texts=texts,
+            algorithm="lda",
+            num_topics=min(8, max(3, len(texts) // 100))  # Dynamic topic count
+        )
+        
+        # Run topic modeling logic directly
+        if len(topic_input.texts) >= 2:
+            processed_texts = []
+            for i, text in enumerate(topic_input.texts):
+                result = preprocess_text_comprehensive(text)
+                if isinstance(result, dict):
+                    processed_text = result.get('processed_text', text)
+                else:
+                    processed_text = text
+                processed_texts.append(processed_text)
+            
+            # Run topic modeling
+            topic_results = topic_modeling_engine.perform_topic_modeling(
+                texts=processed_texts,
+                algorithm=topic_input.algorithm,
+                num_topics=topic_input.num_topics
+            )
+            
+        # Store topic results
+        topic_storage = {
+            'analysis_type': 'topic_modeling',
+            'algorithm': 'lda',
+            'timestamp': time.time(),
+            'results': topic_results
+        }
+        
+        # Save topic results to session storage
+        try:
+            # Store as insight with special type for session-level analysis
+            # Convert any sets to lists to avoid JSON serialization issues
+            def convert_sets_to_lists(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_sets_to_lists(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_sets_to_lists(v) for v in obj]
+                elif isinstance(obj, set):
+                    return list(obj)
+                else:
+                    return obj
+            
+            # Clean the data for JSON serialization
+            clean_topic_results = convert_sets_to_lists(topic_results)
+            clean_topic_storage = convert_sets_to_lists(topic_storage)
+            
+            text_storage.store_insights(
+                session_id=session_id,
+                insight_type='topic_modeling_results',
+                themes=json.dumps(clean_topic_results.get('topics', [])),
+                key_insights=json.dumps(clean_topic_storage),
+                recommendations=json.dumps({'algorithm': 'lda', 'topics': clean_topic_results.get('num_topics', 0)}),
+                confidence_score=clean_topic_results.get('coherence_score', 0.0)
+            )
+        except Exception as e:
+            logger.warning(f"Could not store topic results: {e}")
+        
+        logger.info(f"✅ Topic modeling complete: {topic_results.get('num_topics', 'unknown')} topics found")        # 2. Run Sentiment Analysis
+        logger.info("🎯 Step 2: Running sentiment analysis...")
+        
+        # Run sentiment analysis on each text
+        sentiment_analyzer = SimpleSentimentAnalyzer()
+        all_sentiments = []
+        sentiment_distribution = {'positive': 0, 'negative': 0, 'neutral': 0}
+        
+        for i, text in enumerate(texts[:100]):  # Limit to first 100 for performance
+            sentiment = sentiment_analyzer.calculate_sentiment_scores(text)
+            all_sentiments.append({
+                'document_id': i,
+                'text': text[:100] + '...' if len(text) > 100 else text,
+                'sentiment': sentiment['sentiment'],
+                'confidence': sentiment['confidence'],
+                'scores': {
+                    'positive': sentiment.get('positive_score', 0),
+                    'negative': sentiment.get('negative_score', 0),
+                    'neutral': sentiment.get('neutral_score', 0)
+                }
+            })
+            sentiment_distribution[sentiment['sentiment']] += 1
+        
+        # Calculate overall sentiment
+        total = len(all_sentiments)
+        if total > 0:
+            for key in sentiment_distribution:
+                sentiment_distribution[key] = round(sentiment_distribution[key] / total, 3)
+        
+        overall_sentiment = max(sentiment_distribution, key=sentiment_distribution.get)
+        overall_confidence = sum(s['confidence'] for s in all_sentiments) / len(all_sentiments) if all_sentiments else 0
+        
+        sentiment_results = {
+            'overall_sentiment': overall_sentiment,
+            'overall_confidence': round(overall_confidence, 3),
+            'sentiment_distribution': sentiment_distribution,
+            'document_sentiments': all_sentiments[:10],  # Top 10 for display
+            'total_analyzed': len(all_sentiments)
+        }
+        
+        # Store sentiment results
+        sentiment_storage = {
+            'analysis_type': 'sentiment',
+            'timestamp': time.time(),
+            'results': sentiment_results
+        }
+        
+        # Save sentiment results to session storage
+        try:
+            # Store as insight with special type for session-level analysis
+            text_storage.store_insights(
+                session_id=session_id,
+                insight_type='sentiment_analysis_results',
+                themes=json.dumps([overall_sentiment]),
+                key_insights=json.dumps(sentiment_storage),
+                recommendations=json.dumps(sentiment_distribution),
+                confidence_score=overall_confidence
+            )
+        except Exception as e:
+            logger.warning(f"Could not store sentiment results: {e}")
+        
+        logger.info(f"✅ Sentiment analysis complete: {overall_sentiment} overall sentiment")
+        
+        # 3. Update session metadata (only if session_data exists)
+        if session_data:
+            session_data['analysis_complete'] = True
+            session_data['last_analyzed'] = time.time()
+            text_storage.store_session(session_id, session_data.get('processed_texts', texts))
+        
+        logger.info(f"✅ Complete analysis finished for session {session_id}")
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "analysis_summary": {
+                "topics_found": topic_results.get('num_topics', 0) if 'topic_results' in locals() else 0,
+                "overall_sentiment": overall_sentiment,
+                "texts_analyzed": len(texts),
+                "sentiment_distribution": sentiment_distribution
+            },
+            "message": f"Complete analysis finished for {len(texts)} documents"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Analysis failed for session {session_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+# ============================================================================
 # SERVER STARTUP
 # ============================================================================
 

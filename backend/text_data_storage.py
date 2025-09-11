@@ -325,11 +325,23 @@ class TextDataStorage:
         processed_texts = self.get_processed_texts(session_id)
         insights = self.get_insights(session_id)
         
-        # Get all analysis results for this session
+        # Get all analysis results for this session (text-level)
         all_analyses = []
         for text in processed_texts:
             analyses = self.get_analysis_results(text['id'])
             all_analyses.extend(analyses)
+        
+        # Extract session-level analysis results from insights
+        for insight in insights:
+            insight_type = insight.get('insight_type', '')
+            if insight_type in ['topic_modeling_results', 'sentiment_analysis_results']:
+                try:
+                    # Parse the stored analysis from key_insights
+                    analysis_data = json.loads(insight.get('key_insights', '{}'))
+                    if analysis_data and 'analysis_type' in analysis_data:
+                        all_analyses.append(analysis_data)
+                except json.JSONDecodeError:
+                    pass
         
         return {
             'session_id': session_id,
