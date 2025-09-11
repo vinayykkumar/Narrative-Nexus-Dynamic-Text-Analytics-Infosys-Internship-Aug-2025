@@ -28,13 +28,7 @@ __pycache__/
 python_preprocessing/venv/
 
 # Large dataset files (should not be in version control)
-/dataset/*.csv
-/dataset/*.tsv
-/dataset/*.json
-/dataset/**/*.csv
-/dataset/**/*.tsv
-/dataset/**/*.json
-/dataset/**/*.txt
+/data/
 *.zip
 *.tar.gz
 *.rar

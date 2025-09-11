@@ -1,213 +1,294 @@
-"use client"
+'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { FileText, Copy, Download, Edit, Sparkles } from "lucide-react"
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { AlertCircle, FileText, Sparkles, TrendingUp, Clock } from 'lucide-react';
 
-export function TextSummaryResults() {
-  const summaries = [
-    {
-      type: "Executive Summary",
-      length: "short",
-      content:
-        "The analysis reveals a predominantly positive sentiment across technology and customer experience topics, with 72% positive mentions. Key themes include innovation, digital transformation, and customer satisfaction, indicating strong market positioning and growth potential.",
-      wordCount: 35,
-      readingTime: "15 seconds",
-    },
-    {
-      type: "Detailed Summary",
-      length: "medium",
-      content:
-        "This comprehensive text analysis identifies eight distinct topics with technology and innovation leading at 34% prevalence. Customer experience follows at 28%, showing strong positive sentiment (78% positive mentions). Business strategy discussions maintain neutral sentiment, while product development shows promising positive trends. The analysis suggests focusing on technology advancement and customer satisfaction as key growth drivers, while addressing concerns in financial performance discussions.",
-      wordCount: 68,
-      readingTime: "30 seconds",
-    },
-    {
-      type: "Key Points",
-      length: "bullets",
-      content:
-        "• Technology & Innovation dominates content (34% prevalence)\n• Overall positive sentiment at 72% with high confidence (88%)\n• Customer experience shows strong satisfaction indicators\n• Business strategy discussions remain neutral, requiring attention\n• Product development trending positively\n• Financial performance topics show mixed sentiment patterns",
-      wordCount: 45,
-      readingTime: "20 seconds",
-    },
-  ]
+interface SummarizationResult {
+  original_text: string;
+  summary: string;
+  key_sentences: string[];
+  sentence_scores: { [key: string]: number };
+  method_used: string;
+  compression_ratio: number;
+  word_count_original: number;
+  word_count_summary: number;
+}
 
-  const keyExtracts = [
-    {
-      topic: "Technology & Innovation",
-      extract:
-        "The integration of AI and automation technologies has revolutionized our approach to digital transformation, creating unprecedented opportunities for innovation and growth.",
-      relevance: 95,
-      sentiment: "positive",
-    },
-    {
-      topic: "Customer Experience",
-      extract:
-        "Customer satisfaction scores have consistently improved, with feedback highlighting the quality of service and responsiveness of our support team.",
-      relevance: 92,
-      sentiment: "positive",
-    },
-    {
-      topic: "Business Strategy",
-      extract:
-        "Market analysis indicates competitive pressures require strategic repositioning and careful resource allocation to maintain growth trajectory.",
-      relevance: 88,
-      sentiment: "neutral",
-    },
-  ]
+export default function TextSummaryResults() {
+  const [inputText, setInputText] = useState('');
+  const [results, setResults] = useState<SummarizationResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [method, setMethod] = useState<'frequency' | 'tfidf'>('tfidf');
+  const [maxSentences, setMaxSentences] = useState(3);
+  const [error, setError] = useState<string | null>(null);
 
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "text-green-600 bg-green-50"
-      case "negative":
-        return "text-red-600 bg-red-50"
-      default:
-        return "text-gray-600 bg-gray-50"
+  const handleSummarize = async () => {
+    if (!inputText.trim()) {
+      setError('Please enter some text to summarize');
+      return;
     }
-  }
 
-  const getLengthBadgeColor = (length: string) => {
-    switch (length) {
-      case "short":
-        return "bg-green-500"
-      case "medium":
-        return "bg-blue-500"
-      case "bullets":
-        return "bg-purple-500"
-      default:
-        return "bg-gray-500"
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('http://localhost:8000/text-summarization', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: inputText,
+          method: method,
+          max_sentences: maxSentences
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setResults(data);
+    } catch (error) {
+      console.error('Error:', error);
+      setError('Failed to analyze text. Please make sure the backend server is running on http://localhost:8000');
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
+
+  const getSentenceImportance = (sentence: string, scores: { [key: string]: number }) => {
+    const score = scores[sentence] || 0;
+    const maxScore = Math.max(...Object.values(scores));
+    return Math.round((score / maxScore) * 100);
+  };
+
+  const getImportanceColor = (importance: number) => {
+    if (importance >= 80) return 'bg-red-500';
+    if (importance >= 60) return 'bg-orange-500';
+    if (importance >= 40) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
 
   return (
     <div className="space-y-6">
-      {/* Generated Summaries */}
-      <div className="space-y-4">
-        {summaries.map((summary, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="font-serif flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    {summary.type}
-                  </CardTitle>
-                  <Badge className={`${getLengthBadgeColor(summary.length)} text-white text-xs`}>
-                    {summary.length}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                </div>
-              </div>
-              <CardDescription>
-                {summary.wordCount} words • {summary.readingTime} reading time
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Textarea value={summary.content} readOnly className="min-h-[120px] resize-none bg-muted/30" />
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Generated using extractive and abstractive techniques</span>
-                  <Button variant="ghost" size="sm">
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Regenerate
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Key Extracts */}
+      {/* Input Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif">Key Extracts</CardTitle>
-          <CardDescription>Most relevant sentences and phrases from your content</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Text Summarization
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {keyExtracts.map((extract, index) => (
-              <div key={index} className="p-4 border border-border rounded-lg">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <h4 className="font-medium">{extract.topic}</h4>
-                    <Badge className={getSentimentColor(extract.sentiment)}>{extract.sentiment}</Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {extract.relevance}% relevance
-                    </Badge>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-                <blockquote className="text-sm italic text-muted-foreground border-l-4 border-secondary pl-4">
-                  "{extract.extract}"
-                </blockquote>
-              </div>
-            ))}
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Enter text to summarize</label>
+            <Textarea
+              placeholder="Enter your text here for summarization..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="min-h-[120px] resize-none"
+            />
           </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="text-sm font-medium">Summarization Method</label>
+              <Select value={method} onValueChange={(value: 'frequency' | 'tfidf') => setMethod(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="frequency">Frequency-based</SelectItem>
+                  <SelectItem value="tfidf">TF-IDF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium">Max Sentences</label>
+              <Select value={maxSentences.toString()} onValueChange={(value) => setMaxSentences(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 sentence</SelectItem>
+                  <SelectItem value="2">2 sentences</SelectItem>
+                  <SelectItem value="3">3 sentences</SelectItem>
+                  <SelectItem value="4">4 sentences</SelectItem>
+                  <SelectItem value="5">5 sentences</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleSummarize} 
+            disabled={isLoading || !inputText.trim()}
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                Summarizing...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Summary
+              </>
+            )}
+          </Button>
+
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Summary Statistics */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Compression Ratio</p>
-                <p className="text-2xl font-bold">15:1</p>
-                <p className="text-xs text-muted-foreground mt-1">Original to summary</p>
+      {/* Results Section */}
+      {results && (
+        <div className="space-y-6">
+          {/* Summary Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Summary Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{results.word_count_original}</div>
+                  <div className="text-sm text-gray-600">Original Words</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{results.word_count_summary}</div>
+                  <div className="text-sm text-gray-600">Summary Words</div>
+                </div>
+                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {Math.round((1 - results.compression_ratio) * 100)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Compression</div>
+                </div>
+                <div className="text-center p-3 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {results.key_sentences.length}
+                  </div>
+                  <div className="text-sm text-gray-600">Key Sentences</div>
+                </div>
               </div>
-              <div className="p-2 rounded-lg bg-blue-100">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Key Points</p>
-                <p className="text-2xl font-bold">12</p>
-                <p className="text-xs text-muted-foreground mt-1">Main concepts</p>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Compression Ratio</span>
+                  <span>{Math.round(results.compression_ratio * 100)}%</span>
+                </div>
+                <Progress value={results.compression_ratio * 100} className="h-2" />
               </div>
-              <div className="p-2 rounded-lg bg-green-100">
-                <Sparkles className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Quality Score</p>
-                <p className="text-2xl font-bold">8.7/10</p>
-                <p className="text-xs text-muted-foreground mt-1">Summary quality</p>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize">
+                  {results.method_used}
+                </Badge>
+                <Badge variant="secondary">
+                  {results.key_sentences.length} sentences selected
+                </Badge>
               </div>
-              <div className="p-2 rounded-lg bg-purple-100">
-                <Download className="w-5 h-5 text-purple-600" />
+            </CardContent>
+          </Card>
+
+          {/* Generated Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generated Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                <p className="text-gray-800 leading-relaxed">{results.summary}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+
+          {/* Key Sentences */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Key Sentences</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {results.key_sentences.map((sentence, index) => {
+                const importance = getSentenceImportance(sentence, results.sentence_scores);
+                return (
+                  <div key={index} className="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <span className="text-sm font-medium text-blue-600">
+                        Sentence {index + 1}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {importance}% importance
+                        </Badge>
+                        <div className={`w-3 h-3 rounded-full ${getImportanceColor(importance)}`} />
+                      </div>
+                    </div>
+                    <p className="text-gray-800">{sentence}</p>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* All Sentence Scores */}
+          <Card>
+            <CardHeader>
+              <CardTitle>All Sentence Scores</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Object.entries(results.sentence_scores)
+                .sort(([, a], [, b]) => b - a)
+                .map(([sentenceText, score], index) => {
+                  const importance = Math.round((score / Math.max(...Object.values(results.sentence_scores))) * 100);
+                  const isKeySentence = results.key_sentences.includes(sentenceText);
+                  return (
+                    <div 
+                      key={index} 
+                      className={`p-3 rounded-lg border ${isKeySentence ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            Score: {score.toFixed(3)}
+                          </span>
+                          {isKeySentence && (
+                            <Badge className="text-xs">Selected</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={importance} className="w-16 h-2" />
+                          <span className="text-xs text-gray-500">{importance}%</span>
+                        </div>
+                      </div>
+                      <p className={`text-sm ${isKeySentence ? 'text-blue-800' : 'text-gray-700'}`}>
+                        {sentenceText}
+                      </p>
+                    </div>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
-  )
+  );
 }

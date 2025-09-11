@@ -59,11 +59,40 @@ export default function HomePage() {
             comprehensive insights to drive informed decision-making.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
             <Link href="/analyze">
               <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-lg px-8">
                 Start Analysis
                 <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+          
+          {/* Quick Access Links */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <Link href="/architecture">
+              <Button variant="default" size="sm" className="text-xs bg-blue-600 hover:bg-blue-700">
+                🏗️ Architecture Flow
+              </Button>
+            </Link>
+            <Link href="/sentiment">
+              <Button variant="outline" size="sm" className="text-xs">
+                Sentiment Analysis
+              </Button>
+            </Link>
+            <Link href="/processing">
+              <Button variant="outline" size="sm" className="text-xs">
+                Text Summarization
+              </Button>
+            </Link>
+            <Link href="/visualizations">
+              <Button variant="outline" size="sm" className="text-xs">
+                Advanced Charts
+              </Button>
+            </Link>
+            <Link href="/reports">
+              <Button variant="outline" size="sm" className="text-xs">
+                Generate Reports
               </Button>
             </Link>
           </div>

@@ -1,12 +1,17 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { AnalysisProgress } from "@/components/analysis-progress"
+import TextSummaryResults from "@/components/text-summary-results"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Brain } from "lucide-react"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function ProcessingPage() {
+  const searchParams = useSearchParams()
+  const sessionId = searchParams.get('session')
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -36,23 +41,39 @@ export default function ProcessingPage() {
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Processing Analysis</h1>
+          <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Text Analysis & Processing</h1>
           <p className="text-muted-foreground">
-            Your text is being analyzed using advanced NLP algorithms. This typically takes 1-2 minutes.
+            Comprehensive analysis tools including topic modeling, sentiment analysis, and text summarization.
           </p>
         </div>
 
-        <AnalysisProgress 
-          onComplete={(results) => {
-            // Store results and redirect to dashboard
-            localStorage.setItem('analysisResults', JSON.stringify(results))
-            setTimeout(() => {
-              window.location.href = '/dashboard'
-            }, 2000)
-          }}
-        />
+        <Tabs defaultValue="analysis" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="analysis">Topic Analysis</TabsTrigger>
+            <TabsTrigger value="summarization">Text Summarization</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="analysis" className="mt-6">
+            <AnalysisProgress 
+              onComplete={(results) => {
+                // Store results and redirect to dashboard with session ID
+                localStorage.setItem('analysisResults', JSON.stringify(results))
+                setTimeout(() => {
+                  const dashboardUrl = sessionId 
+                    ? `/dashboard?session=${sessionId}`
+                    : '/dashboard'
+                  window.location.href = dashboardUrl
+                }, 2000)
+              }}
+            />
+          </TabsContent>
+          
+          <TabsContent value="summarization" className="mt-6">
+            <TextSummaryResults />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

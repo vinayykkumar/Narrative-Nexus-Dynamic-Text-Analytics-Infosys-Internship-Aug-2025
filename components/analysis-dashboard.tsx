@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -8,15 +8,46 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { AnalysisOverview } from "@/components/analysis-overview"
 import { TopicModelingResults } from "@/components/topic-modeling-results"
+import { TopicModelingDebug } from "@/components/topic-modeling-debug"
 import { SentimentAnalysisResults } from "@/components/sentiment-analysis-results"
-import { TextSummaryResults } from "@/components/text-summary-results"
-import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw } from "lucide-react"
+import TextSummaryResults from "@/components/text-summary-results"
+import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw, Bug } from "lucide-react"
 
-export function AnalysisDashboard() {
+interface AnalysisDashboardProps {
+  dashboardData?: any
+  reportData?: any  
+  sessionId?: string | null
+}
+
+export function AnalysisDashboard({ dashboardData, reportData, sessionId }: AnalysisDashboardProps) {
   const [analysisStatus, setAnalysisStatus] = useState<"running" | "completed" | "paused" | "error">("completed")
   const [activeTab, setActiveTab] = useState("overview")
 
-  const analysisProgress = {
+  // Debug: Log what data we're receiving
+  console.log("🔍 AnalysisDashboard received data:", { 
+    dashboardData: dashboardData, 
+    analysisResults: dashboardData?.charts_data?.analysis_results,
+    sessionId 
+  })
+
+  // Set status based on real data
+  useEffect(() => {
+    if (dashboardData?.architecture_complete) {
+      setAnalysisStatus("completed")
+    } else if (dashboardData) {
+      setAnalysisStatus("running")
+    }
+  }, [dashboardData])
+
+  // Use real data if available, fallback to demo data
+  const dashboard = dashboardData?.dashboard || dashboardData
+  const analysisProgress = dashboard ? {
+    preprocessing: 100,
+    topicModeling: dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0,
+    sentimentAnalysis: dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0,
+    summarization: dashboard.overview?.insights_generated > 0 ? 100 : 0,
+    overall: dashboard.overview?.analysis_types_completed >= 2 && dashboard.overview?.insights_generated > 0 ? 100 : 80,
+  } : {
     preprocessing: 100,
     topicModeling: 100,
     sentimentAnalysis: 100,
@@ -24,7 +55,13 @@ export function AnalysisDashboard() {
     overall: 92,
   }
 
-  const analysisSteps = [
+  const analysisSteps = dashboard ? [
+    { name: "Text Input Processing", status: "completed", progress: 100 },
+    { name: "Data Processing", status: "completed", progress: 100 },
+    { name: "Sentiment Analysis", status: dashboard.overview?.analysis_types_completed >= 1 ? "completed" : "pending", progress: dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0 },
+    { name: "Topic Modeling", status: dashboard.overview?.analysis_types_completed >= 2 ? "completed" : "pending", progress: dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0 },
+    { name: "Insight Generation", status: dashboard.overview?.insights_generated > 0 ? "completed" : "pending", progress: dashboard.overview?.insights_generated > 0 ? 100 : 0 },
+  ] : [
     { name: "Text Preprocessing", status: "completed", progress: 100 },
     { name: "Topic Modeling", status: "completed", progress: 100 },
     { name: "Sentiment Analysis", status: "completed", progress: 100 },
@@ -124,20 +161,24 @@ export function AnalysisDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="border-b border-border px-6 pt-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TabsList className="h-10 w-full justify-start">
+                <TabsTrigger value="overview" className="flex items-center gap-2 px-4">
                   <BarChart3 className="w-4 h-4" />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="topics" className="flex items-center gap-2">
+                <TabsTrigger value="topics" className="flex items-center gap-2 px-4">
                   <Brain className="w-4 h-4" />
                   Topics
                 </TabsTrigger>
-                <TabsTrigger value="sentiment" className="flex items-center gap-2">
+                <TabsTrigger value="debug" className="flex items-center gap-2 px-4">
+                  <Bug className="w-4 h-4" />
+                  Debug
+                </TabsTrigger>
+                <TabsTrigger value="sentiment" className="flex items-center gap-2 px-4">
                   <Target className="w-4 h-4" />
                   Sentiment
                 </TabsTrigger>
-                <TabsTrigger value="summary" className="flex items-center gap-2">
+                <TabsTrigger value="summary" className="flex items-center gap-2 px-4">
                   <FileText className="w-4 h-4" />
                   Summary
                 </TabsTrigger>
@@ -146,15 +187,39 @@ export function AnalysisDashboard() {
 
             <div className="p-6">
               <TabsContent value="overview" className="mt-0">
-                <AnalysisOverview />
+                <AnalysisOverview 
+                  dashboardData={dashboardData} 
+                  reportData={reportData}
+                  sessionId={sessionId}
+                />
               </TabsContent>
 
               <TabsContent value="topics" className="mt-0">
-                <TopicModelingResults />
+                {(() => {
+                  const topicResults = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'topic_modeling')?.results
+                  console.log("🎯 Passing topic results to TopicModelingResults:", topicResults)
+                  return (
+                    <TopicModelingResults 
+                      results={topicResults}
+                    />
+                  )
+                })()}
+              </TabsContent>
+
+              <TabsContent value="debug" className="mt-0">
+                <TopicModelingDebug />
               </TabsContent>
 
               <TabsContent value="sentiment" className="mt-0">
-                <SentimentAnalysisResults />
+                {(() => {
+                  const sentimentResults = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'sentiment')?.results
+                  console.log("🎯 Passing sentiment results to SentimentAnalysisResults:", sentimentResults)
+                  return (
+                    <SentimentAnalysisResults 
+                      results={sentimentResults}
+                    />
+                  )
+                })()}
               </TabsContent>
 
               <TabsContent value="summary" className="mt-0">

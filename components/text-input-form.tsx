@@ -16,79 +16,162 @@ import { backendAPI } from "@/lib/api/backend-client"
 export function TextInputForm() {
   const [textInput, setTextInput] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisStep, setAnalysisStep] = useState("")
   const [activeTab, setActiveTab] = useState("text")
   const router = useRouter()
 
   const handleAnalyze = async () => {
     if (!canAnalyze) return
     
+    // Check if we're on the text tab and have text content
+    if (activeTab === "text" && textInput.trim().length === 0) {
+      console.log("❌ Cannot analyze: No text content provided");
+      return;
+    }
+    
+    // If we're on the file tab, the FileProcessor should handle the upload
+    if (activeTab === "file") {
+      console.log("📁 File upload should be handled by FileProcessor component");
+      return;
+    }
+    
     setIsAnalyzing(true)
     
     try {
-      let preprocessingResult = null;
+      console.log("🚀 Starting complete architecture-compliant analysis flow...");
+      console.log("📝 Text length:", textInput.length, "characters");
       
-      // Perform data preprocessing if we have text input
-      if (activeTab === "text" && textInput.trim()) {
-        console.log("🚀 Starting data preprocessing...");
-        console.log("📝 Text length:", textInput.length, "characters");
-        console.log("⚙️ Preprocessing options:", {
-          remove_stopwords: true,
-          use_lemmatization: true,
-          use_stemming: false,
-          min_token_length: 2,
-          max_token_length: 50
-        });
-        
-        // Call the backend preprocessing API
-        preprocessingResult = await backendAPI.preprocessText(
-          textInput,
-          {
-            remove_stopwords: true,
-            use_lemmatization: true,
-            use_stemming: false,
-            min_token_length: 2,
-            max_token_length: 50
-          }
-        );
-        
-        console.log("✅ Preprocessing completed successfully!");
-        console.log("📊 Results:", preprocessingResult);
+      // STEP 1: Input Data Handling
+      console.log("Step 1: Input Data Handling...");
+      setAnalysisStep("Processing input data...");
+      const inputResponse = await fetch('http://localhost:8000/input/text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: textInput,
+          source: 'manual_input'
+        }),
+      });
+      
+      if (!inputResponse.ok) {
+        throw new Error('Failed to process input data');
       }
       
-      // Store analysis data in localStorage for demo purposes
+      const inputResult = await inputResponse.json();
+      const sessionId = inputResult.session_id;
+      console.log("✅ Input data processed. Session ID:", sessionId);
+      
+      // STEP 2: Data Processing
+      console.log("Step 2: Data Processing...");
+      setAnalysisStep("Processing and cleaning text...");
+      const processResponse = await fetch(`http://localhost:8000/process/data/${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!processResponse.ok) {
+        throw new Error('Failed to process data');
+      }
+      
+      const processResult = await processResponse.json();
+      console.log("✅ Data processing completed");
+      
+      // STEP 3: Sentiment Analysis
+      console.log("Step 3: Sentiment Analysis...");
+      setAnalysisStep("Analyzing sentiment and emotions...");
+      const sentimentResponse = await fetch(`http://localhost:8000/analyze/sentiment/${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!sentimentResponse.ok) {
+        throw new Error('Failed to analyze sentiment');
+      }
+      
+      const sentimentResult = await sentimentResponse.json();
+      console.log("✅ Sentiment analysis completed");
+      
+      // STEP 4: Topic Modeling
+      console.log("Step 4: Topic Modeling...");
+      setAnalysisStep("Extracting topics and themes...");
+      const topicResponse = await fetch(`http://localhost:8000/analyze/topics/${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!topicResponse.ok) {
+        throw new Error('Failed to analyze topics');
+      }
+      
+      const topicResult = await topicResponse.json();
+      console.log("✅ Topic modeling completed");
+      
+      // STEP 5: Insight Generation
+      console.log("Step 5: Insight Generation...");
+      setAnalysisStep("Generating insights and recommendations...");
+      const insightResponse = await fetch(`http://localhost:8000/insights/generate/${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!insightResponse.ok) {
+        throw new Error('Failed to generate insights');
+      }
+      
+      const insightResult = await insightResponse.json();
+      console.log("✅ Insight generation completed");
+      
+      // Store the session ID and results for the dashboard
       const analysisData = {
+        sessionId: sessionId,
         input: textInput,
-        preprocessingResult: preprocessingResult,
+        inputResult: inputResult,
+        processResult: processResult,
+        sentimentResult: sentimentResult,
+        topicResult: topicResult,
+        insightResult: insightResult,
         timestamp: new Date().toISOString(),
         type: activeTab,
+        complete: true
       }
       localStorage.setItem('currentAnalysis', JSON.stringify(analysisData))
       
+      console.log("🎉 Complete analysis flow finished! Redirecting to dashboard...");
       setIsAnalyzing(false)
       
-      // Navigate to processing page
-      router.push('/processing')
+      // Navigate directly to dashboard with session ID
+      router.push(`/dashboard?session=${sessionId}`)
       
     } catch (error) {
-      console.error("Error during preprocessing:", error);
+      console.error("❌ Error during analysis:", error);
       setIsAnalyzing(false);
       
-      // Store analysis data even if preprocessing fails
+      // Store analysis data even if it fails
       const analysisData = {
         input: textInput,
-        preprocessingResult: null,
         error: error instanceof Error ? error.message : "Unknown error occurred",
         timestamp: new Date().toISOString(),
         type: activeTab,
+        complete: false
       }
       localStorage.setItem('currentAnalysis', JSON.stringify(analysisData))
       
-      // Navigate to processing page anyway (it can show the error)
+      // Show error but still navigate to processing page for error display
       router.push('/processing')
     }
   }
 
-  const canAnalyze = textInput.trim().length > 0 || activeTab !== "text"
+  const canAnalyze = (activeTab === "text" && textInput.trim().length > 0) || (activeTab !== "text")
 
   return (
     <div className="space-y-6">
@@ -153,7 +236,7 @@ export function TextInputForm() {
             <div>
               <h3 className="font-serif font-semibold mb-1">Ready to Analyze</h3>
               <p className="text-sm text-muted-foreground">
-                Your text will be preprocessed (cleaned, tokenized, normalized) and then analyzed using advanced NLP algorithms to extract insights.
+                Your text will be processed through the complete analysis pipeline: sentiment analysis, topic modeling, and insight generation.
               </p>
             </div>
             <Button
@@ -165,11 +248,11 @@ export function TextInputForm() {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing & Analyzing...
+                  {analysisStep || "Running Complete Analysis..."}
                 </>
               ) : (
                 <>
-                  Start Analysis
+                  Start Complete Analysis
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}

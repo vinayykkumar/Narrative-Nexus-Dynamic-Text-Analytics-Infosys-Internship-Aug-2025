@@ -3,238 +3,182 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
-import { TopicDistributionChart } from "@/components/visualizations/topic-distribution-chart"
-import { WordCloud } from "@/components/visualizations/word-cloud"
-import { MetricsDashboard } from "@/components/visualizations/metrics-dashboard"
-import { Brain, TrendingUp, Eye, MoreHorizontal, FileText, Target } from "lucide-react"
+import { Brain, Target } from "lucide-react"
+import { useState } from "react"
 
-export function TopicModelingResults() {
-  const topics = [
-    {
-      id: 1,
-      name: "Technology & Innovation",
-      prevalence: 34,
-      keywords: ["technology", "innovation", "digital", "AI", "automation", "future"],
-      coherence: 0.92,
-      documents: 156,
-      sentiment: "positive",
-    },
-    {
-      id: 2,
-      name: "Customer Experience",
-      prevalence: 28,
-      keywords: ["customer", "service", "experience", "satisfaction", "support", "quality"],
-      coherence: 0.88,
-      documents: 134,
-      sentiment: "positive",
-    },
-    {
-      id: 3,
-      name: "Business Strategy",
-      prevalence: 18,
-      keywords: ["strategy", "business", "growth", "market", "competitive", "planning"],
-      coherence: 0.85,
-      documents: 89,
-      sentiment: "neutral",
-    },
-    {
-      id: 4,
-      name: "Product Development",
-      prevalence: 12,
-      keywords: ["product", "development", "features", "design", "user", "interface"],
-      coherence: 0.81,
-      documents: 67,
-      sentiment: "positive",
-    },
-    {
-      id: 5,
-      name: "Financial Performance",
-      prevalence: 8,
-      keywords: ["revenue", "profit", "cost", "budget", "financial", "investment"],
-      coherence: 0.79,
-      documents: 45,
-      sentiment: "neutral",
-    },
-  ]
-
-  const topicChartData = topics.map((topic, index) => ({
-    name: topic.name,
-    value: topic.prevalence,
-    documents: topic.documents,
-    color: `hsl(${index * 60}, 70%, 50%)`,
-    keywords: topic.keywords,
-  }))
-
-  const wordCloudData = topics
-    .flatMap((topic) =>
-      topic.keywords.map((keyword) => ({
-        text: keyword,
-        value: Math.floor(Math.random() * 50) + 10, // Simulated frequency
-      })),
-    )
-    .sort((a, b) => b.value - a.value)
-
-  const metricsData = [
-    {
-      title: "Total Topics",
-      value: topics.length,
-      change: "Optimal range",
-      changeType: "neutral" as const,
-      icon: Brain,
-      color: "#6366f1",
-      description: "Well-structured content",
-    },
-    {
-      title: "Avg Coherence",
-      value: "0.85",
-      change: "+0.05",
-      changeType: "increase" as const,
-      progress: 85,
-      icon: TrendingUp,
-      color: "#10b981",
-      description: "Good quality topics",
-    },
-    {
-      title: "Coverage",
-      value: "100%",
-      change: "Complete",
-      changeType: "neutral" as const,
-      progress: 100,
-      icon: Target,
-      color: "#3b82f6",
-      description: "All docs classified",
-    },
-    {
-      title: "Documents",
-      value: "491",
-      change: "+23",
-      changeType: "increase" as const,
-      icon: FileText,
-      color: "#f59e0b",
-      description: "Total analyzed",
-    },
-  ]
-
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "text-green-600 bg-green-50"
-      case "negative":
-        return "text-red-600 bg-red-50"
-      case "neutral":
-        return "text-gray-600 bg-gray-50"
-      default:
-        return "text-gray-600 bg-gray-50"
-    }
+interface TopicModelingResultsProps {
+  results?: {
+    algorithm: string
+    num_topics: number
+    topics: Array<{
+      topic_id: number
+      topic_label: string
+      top_words: Array<[string, number]>
+      keywords: string[]
+      description: string
+    }>
   }
+}
 
-  const getCoherenceLevel = (score: number) => {
-    if (score >= 0.9) return { label: "Excellent", color: "bg-green-500" }
-    if (score >= 0.8) return { label: "Good", color: "bg-blue-500" }
-    if (score >= 0.7) return { label: "Fair", color: "bg-yellow-500" }
-    return { label: "Poor", color: "bg-red-500" }
-  }
+export function TopicModelingResults({ results }: TopicModelingResultsProps) {
+  const [selectedTopic, setSelectedTopic] = useState<number>(0)
 
-  return (
-    <div className="space-y-6">
-      <MetricsDashboard
-        metrics={metricsData}
-        title="Topic Analysis Overview"
-        description="Key performance indicators for topic modeling results"
-      />
+  // Debug: Log what data we're receiving
+  console.log("🔍 TopicModelingResults received data:", results)
 
-      <TopicDistributionChart
-        data={topicChartData}
-        title="Topic Distribution"
-        description="Visual representation of topic prevalence in your content"
-      />
-
-      <WordCloud
-        words={wordCloudData}
-        title="Key Terms"
-        description="Most frequently mentioned words across all topics"
-        maxWords={30}
-      />
-
-      {/* Topic Overview */}
-      <Card>
+  if (!results) {
+    console.log("❌ No results data received")
+    return (
+      <Card className="border-border">
         <CardHeader>
-          <CardTitle className="font-serif flex items-center gap-2">
-            <Brain className="w-5 h-5" />
-            Detailed Topic Analysis
-          </CardTitle>
-          <CardDescription>Comprehensive breakdown of identified topics and their characteristics</CardDescription>
+          <div className="flex items-center space-x-2">
+            <Brain className="w-5 h-5 text-secondary" />
+            <CardTitle>Topic Modeling Results</CardTitle>
+          </div>
+          <CardDescription>
+            Topic modeling results will appear here after analysis
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {topics.map((topic) => {
-              const coherence = getCoherenceLevel(topic.coherence)
-              return (
-                <div key={topic.id} className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-serif font-semibold">{topic.name}</h3>
-                        <Badge className={getSentimentColor(topic.sentiment)}>{topic.sentiment}</Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {topic.documents} docs
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-4 mb-3">
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm font-medium">Prevalence</span>
-                            <span className="text-sm text-muted-foreground">{topic.prevalence}%</span>
-                          </div>
-                          <Progress value={topic.prevalence} className="h-2" />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Coherence:</span>
-                          <Badge className={`${coherence.color} text-white text-xs`}>{coherence.label}</Badge>
-                          <span className="text-sm text-muted-foreground">({topic.coherence})</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {topic.keywords.map((keyword, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {keyword}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+          <div className="text-center py-8 text-muted-foreground">
+            <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Run topic modeling to see results</p>
           </div>
         </CardContent>
       </Card>
+    )
+  }
 
-      {/* Topic Relationships */}
+  const { topics, algorithm, num_topics } = results
+  console.log("✅ Topic modeling data loaded:", { algorithm, num_topics, topicsCount: topics?.length })
+
+  return (
+    <div className="space-y-6">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Topics Found</CardTitle>
+              <Brain className="w-4 h-4 text-secondary" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">{num_topics}</div>
+            <p className="text-xs text-muted-foreground">Using {algorithm}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Algorithm</CardTitle>
+              <Target className="w-4 h-4 text-secondary" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">{algorithm}</div>
+            <p className="text-xs text-muted-foreground">Topic extraction method</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Status</CardTitle>
+              <Target className="w-4 h-4 text-secondary" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">Complete</div>
+            <p className="text-xs text-muted-foreground">Analysis finished</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Topics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {topics.map((topic, index) => (
+          <Card key={topic.topic_id} className="border-border/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Topic {topic.topic_id + 1}</CardTitle>
+                <Brain className="w-4 h-4 text-secondary/70" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Keywords */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Top Words</p>
+                <div className="flex flex-wrap gap-1">
+                  {topic.keywords && topic.keywords.length > 0 ? (
+                    topic.keywords.slice(0, 6).map((word: string, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {word}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No words identified</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Word Weights */}
+              {topic.top_words && topic.top_words.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Word Weights</p>
+                  <div className="space-y-1">
+                    {topic.top_words.slice(0, 5).map(([word, probability]: [string, number], i: number) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <span>{word}</span>
+                        <div className="flex items-center gap-2 flex-1 ml-2">
+                          <Progress 
+                            value={probability ? probability * 100 : 0} 
+                            className="h-1 flex-1" 
+                          />
+                          <span className="text-muted-foreground w-8">
+                            {probability ? (probability * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Analysis Summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif">Topic Relationships</CardTitle>
-          <CardDescription>How topics relate to each other in your content</CardDescription>
+          <CardTitle>Topic Analysis Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Topic relationship visualization will be displayed here</p>
-            <p className="text-sm">Interactive network graph showing topic connections</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="font-medium text-blue-900">Total Topics</div>
+                <div className="text-blue-700">{num_topics} topics identified</div>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="font-medium text-green-900">Algorithm</div>
+                <div className="text-green-700">{algorithm} method used</div>
+              </div>
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <div className="font-medium text-purple-900">Status</div>
+                <div className="text-purple-700">Analysis complete</div>
+              </div>
+            </div>
+
+            {topics.some(topic => topic.keywords.length === 0) && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Some topics show no words. This may occur with very short text or when the algorithm needs more content to identify meaningful topics.
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
