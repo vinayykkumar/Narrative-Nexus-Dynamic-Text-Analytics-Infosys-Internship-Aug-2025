@@ -1,3 +1,0 @@
-This is a test text file for uploading.
-It contains multiple lines to test the file upload functionality.
-The backend should process this as a single document.
