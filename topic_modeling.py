@@ -21,31 +21,23 @@ print("-------------------------------------------\n")
 
 # --- 2. PREPARE DATA FOR TOPIC MODELING ---
 print("🚀 Preparing text data for LDA Topic Modeling...")
-
-# For LDA, it's common to use CountVectorizer instead of TfidfVectorizer.
-# This creates a matrix of token counts.
-# max_features=1000 means we'll focus on the 1000 most common words.
-# max_df=0.95 ignores words that appear in more than 95% of documents (too common).
-# min_df=2 ignores words that appear in less than 2 documents (too rare).
 vectorizer = CountVectorizer(max_df=0.95, min_df=2, max_features=1000, stop_words='english')
-
-# Transform the text data into a document-term matrix
 doc_term_matrix = vectorizer.fit_transform(df['cleaned_content'])
-
 print("✅ Text data has been converted into a document-term matrix.")
 print("Shape of the matrix:", doc_term_matrix.shape)
 print("-------------------------------------------\n")
 
 
 # --- 3. IMPLEMENT AND TRAIN THE LDA MODEL ---
-# (Covers Day 15-18 tasks)
-n_components = 7
-print(f"🧠 Training the LDA model to identify key topics...")
+# THE FIX: I've renamed this variable for clarity. This is the only line you need to change for experiments.
+num_topics = 9 
 
-# Initialize the LDA model. We are asking it to find 7 topics.
-# n_components is the number of topics to find.
-# random_state ensures we get the same results each time.
-lda_model = LatentDirichletAllocation(n_components=7, random_state=42)
+# THE FIX: The print statement now uses the variable.
+print(f"🧠 Training the LDA model to identify {num_topics} key topics...")
+
+# Initialize the LDA model.
+# THE FIX: The model now correctly uses your 'num_topics' variable.
+lda_model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
 
 # Train the LDA model on our data
 lda_model.fit(doc_term_matrix)
@@ -68,3 +60,14 @@ for topic_idx, topic in enumerate(lda_model.components_):
     print(" ".join(top_words))
 
 print("\n\n🎉 Topic modeling complete! These are the themes the model found on its own.")
+
+# --- ADD THIS TO THE END of topic_modeling.py ---
+
+print("-------------------------------------------\n")
+print(" perplexity score...")
+
+# The score is calculated on the document-term matrix
+perplexity = lda_model.perplexity(doc_term_matrix)
+
+print(f"📉 Perplexity Score: {perplexity:.4f}")
+print("(A lower score is better)")

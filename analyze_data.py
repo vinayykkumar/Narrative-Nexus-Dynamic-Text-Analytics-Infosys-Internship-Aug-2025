@@ -14,7 +14,7 @@ file_names = [
     'education_data.csv',
     'entertainment_data.csv',
     'sports_data.csv',
-    'technology_data.csv'
+    'technology_data.csv',
 ]
 
 # Create a list to hold the individual dataframes

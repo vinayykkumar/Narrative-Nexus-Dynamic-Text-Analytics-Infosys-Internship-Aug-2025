@@ -3,11 +3,12 @@ import os
 import re
 import nltk
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-# NEW: Import the WordNetLemmatizer
 from nltk.stem import WordNetLemmatizer
 
-
+# ==============================================================================
+# == NLTK SETUP ==
+# ==============================================================================
+# This block correctly handles the NLTK data setup.
 
 try:
     # Define the local directory for NLTK data
@@ -18,7 +19,7 @@ try:
         nltk.data.path.append(local_nltk_dir)
 
     # Check and download necessary NLTK data packages
-    packages = ['punkt', 'stopwords', 'wordnet'] # NEW: Added 'wordnet' for lemmatization
+    packages = ['punkt', 'stopwords', 'wordnet']
     for package in packages:
         try:
             nltk.data.find(f'corpora/{package}' if package != 'punkt' else f'tokenizers/{package}')
@@ -40,33 +41,28 @@ print("-------------------------------------------\n")
 
 
 # ==============================================================================
-# == DATA LOADING AND PREPROCESSING ==
+# == DATA LOADING AND PREPROCESSING FOR SENTIMENT ANALYSIS ==
 # ==============================================================================
 
-# --- DATA LOADING ---
-data_folder = 'datasets'
-file_names = [
-    'business_data.csv', 'education_data.csv', 'entertainment_data.csv',
-    'sports_data.csv', 'technology_data.csv'
-]
-dfs = []
-for file in file_names:
-    file_path = os.path.join(data_folder, file)
-    if os.path.exists(file_path):
-        df = pd.read_csv(file_path)
-        dfs.append(df)
-        print(f"📄 Read {file}")
+# --- 1. LOAD THE IMDB DATA ---
+data_file = os.path.join('datasets', 'IMDB Dataset.csv')
 
-master_df = pd.concat(dfs, ignore_index=True)
-print("\n✅ All datasets have been combined!")
-master_df.dropna(subset=['content'], inplace=True)
-print("Shape after dropping missing content:", master_df.shape)
+try:
+    df = pd.read_csv(data_file)
+    print("✅ IMDB Movie Reviews dataset loaded successfully.")
+except FileNotFoundError:
+    print(f"❌ Error: '{data_file}' not found.")
+    print("Please make sure you have downloaded the dataset and placed it in the 'datasets' folder.")
+    exit()
+
+df.dropna(subset=['review'], inplace=True)
+print("Shape of dataset:", df.shape)
 print("\n-------------------------------------------")
 
-# --- TEXT PREPROCESSING ---
-print("🚀 Starting text preprocessing with LEMMATIZATION...")
 
-# Initialize the lemmatizer
+# --- 2. TEXT PREPROCESSING ---
+print("🚀 Starting text preprocessing with lemmatization for sentiment data...")
+
 lemmatizer = WordNetLemmatizer()
 
 def clean_text(text):
@@ -75,28 +71,26 @@ def clean_text(text):
     """
     if not isinstance(text, str):
         return ""
-    # 1. Lowercasing
     text = text.lower()
-    # 2. Removing Punctuation
-    text = re.sub(r'[^\w\s]', '', text)
-    # 3. Tokenizing
+    text = re.sub(r'<br\s*/?>', ' ', text) # Remove HTML line breaks
+    text = re.sub(r'[^\w\s]', '', text) # Remove punctuation
     words = text.split()
-    # 4. Removing Stop Words and Lemmatizing
-    # NEW: Lemmatize each word after removing stop words
     lemmatized_words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
-    # 5. Rejoining words
     return " ".join(lemmatized_words)
 
-# Apply the updated cleaning function
-master_df['cleaned_content'] = master_df['content'].apply(clean_text)
+# Apply the cleaning function to the 'review' column
+df['cleaned_review'] = df['review'].apply(clean_text)
 print("✅ Text cleaning and lemmatization complete!")
 print("\n-------------------------------------------")
 
-# --- DISPLAY SAMPLE & SAVE ---
-print("Here's a sample of the original vs. cleaned & lemmatized content:")
-pd.set_option('display.max_colwidth', 200)
-print(master_df[['content', 'cleaned_content']].head())
 
-output_file = 'cleaned_articles.csv'
-master_df.to_csv(output_file, index=False)
-print(f"\n🎉 Success! The updated cleaned data has been saved to '{output_file}'.")
+# --- 3. DISPLAY SAMPLE & SAVE ---
+print("Here's a sample of the original vs. cleaned review:")
+pd.set_option('display.max_colwidth', 200)
+# Note: We are displaying the 'review' and 'cleaned_review' columns
+print(df[['review', 'cleaned_review']].head())
+
+# Define the new output file name
+output_file = 'cleaned_sentiment_data.csv'
+df.to_csv(output_file, index=False)
+print(f"\n🎉 Success! The cleaned sentiment data has been saved to '{output_file}'.")
