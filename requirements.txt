@@ -1,0 +1,35 @@
+python-multipart
+# Data Handling
+pandas
+numpy
+
+# Machine Learning & NLP
+scikit-learn
+nltk
+gensim
+spacy
+joblib
+torch
+transformers
+sentence-transformers
+textblob
+
+# Visualization (optional for notebooks/reports)
+matplotlib
+wordcloud
+
+# Summarization helper
+sumy
+
+# Backend
+fastapi
+uvicorn
+
+# File parsing
+docx2txt
+python-docx
+PyPDF2
+
+# Utils
+tqdm
+python-dotenv
