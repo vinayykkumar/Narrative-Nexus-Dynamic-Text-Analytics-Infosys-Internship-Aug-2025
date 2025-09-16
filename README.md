@@ -21,10 +21,6 @@ All 8-week development timeline objectives have been achieved with full-stack im
 
 ### **Installation**
 ```bash
-# Backend Setup
-cd backend
-pip install --break-system-packages fastapi uvicorn python-multipart pydantic nltk aiofiles requests
-python app_minimal.py
 
 # Frontend Setup (new terminal)
 npm install chart.js react-chartjs-2 recharts jspdf html2canvas --legacy-peer-deps  
@@ -83,9 +79,6 @@ AI Narrative Nexus is an 8-week development project aimed at creating a dynamic 
 git clone https://github.com/0x1git/Nexus.git
 cd Nexus
 
-# Setup everything (automated)
-./setup_preprocessing.sh
-
 # Start the development server
 npm install
 npm run dev
@@ -105,20 +98,29 @@ cd Nexus
 # Install Node.js dependencies
 npm install
 
-# Setup Python environment
-python3 -m venv python_preprocessing/venv
-source python_preprocessing/venv/bin/activate  # On Windows: python_preprocessing\venv\Scripts\activate
+make sure it's python 3.11
+```bash
+pyenv install 3.11.0
+
+pyenv local 3.11.0
+
+python --version
+
+```
+python3 -m venv venv
+source /home/git/projects/Narrative-Nexus-Dynamic-Text-Analytics-Infosys-Internship-Aug-2025/.venv/bin/activate 
 ```
 
 
 ### 5. Start Development
 
 ```bash
-# Start Next.js development server
 npm run dev
+```
 
-# In another terminal, keep Python environment ready
-source python_preprocessing/venv/bin/activate
+```bash
+pip install -r requirements.txt
+uvicorn backend.main:app --reload  
 ```
 
 ## 📚 Usage Guide
@@ -142,22 +144,3 @@ source python_preprocessing/venv/bin/activate
 
 
 
-## 🔧 Development
-
-### Building for Production
-
-```bash
-# Build the Next.js application
-npm run build
-
-# Start production server
-npm start
-```
-
-
-
----
-
-**🚀 Ready to analyze text data like never before!**
-
-*Built with ❤️ by the AI Narrative Nexus Team*
