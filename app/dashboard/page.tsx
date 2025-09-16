@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasTriedFetch, setHasTriedFetch] = useState(false)
+  const [artifacts, setArtifacts] = useState<any | null>(null)
 
   console.log("🚀 DashboardPage rendered, sessionId:", sessionId)
 
@@ -75,13 +76,25 @@ export default function DashboardPage() {
     fetchSessionData(sessionId).catch(console.error)
   }
 
-  // Add a manual test button
-  const handleManualFetch = () => {
-    console.error("🔴 Manual fetch button clicked")
-    if (sessionId) {
-      fetchSessionData(sessionId).catch(console.error)
+  // Load artifacts saved by upload flow
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('analysisArtifacts') : null
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setArtifacts(parsed)
+        // Also populate minimal dashboard data to mark analysis as complete
+        setDashboardData((prev: any) => prev ? { ...prev, artifacts: parsed } : {
+          overview: { analysis_types_completed: 2, insights_generated: 0, total_texts_processed: 1 },
+          architecture_complete: true,
+          charts_data: {},
+          artifacts: parsed,
+        })
+      }
+    } catch (e) {
+      console.warn('Failed to load artifacts from storage', e)
     }
-  }
+  }, [])
 
   if (isLoading) {
     return (
@@ -176,23 +189,7 @@ export default function DashboardPage() {
 
       {/* Main Dashboard */}
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Debug Panel */}
-        <Card className="mb-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
-          <CardHeader>
-            <CardTitle className="text-yellow-800 dark:text-yellow-200">Debug Panel</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <p><strong>Session ID:</strong> {sessionId || 'None'}</p>
-              <p><strong>Dashboard Data:</strong> {dashboardData ? 'Loaded' : 'Not loaded'}</p>
-              <p><strong>Loading:</strong> {isLoading ? 'Yes' : 'No'}</p>
-              <p><strong>Error:</strong> {error || 'None'}</p>
-              <Button onClick={handleManualFetch} disabled={!sessionId || isLoading} size="sm" className="mt-2">
-                🔴 Manual Fetch Test
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+  {/* Debug Panel removed per request */}
 
         <div className="mb-6">
           <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Analysis Dashboard</h1>
@@ -202,6 +199,23 @@ export default function DashboardPage() {
               : "Comprehensive insights from your text analysis"}
           </p>
         </div>
+
+        {/* Quick Download Button for Enriched CSV */}
+        {artifacts?.enriched_csv && (
+          <div className="mb-8">
+            <a
+              href={artifacts.enriched_csv}
+              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download className="w-4 h-4" />
+              Download Enriched CSV
+            </a>
+          </div>
+        )}
+
+  {/* Visual Previews removed from main dashboard; shown in individual sections */}
 
         {/* Pass the real data to the dashboard component */}
         <AnalysisDashboard 

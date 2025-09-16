@@ -8,10 +8,9 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { AnalysisOverview } from "@/components/analysis-overview"
 import { TopicModelingResults } from "@/components/topic-modeling-results"
-import { TopicModelingDebug } from "@/components/topic-modeling-debug"
 import { SentimentAnalysisResults } from "@/components/sentiment-analysis-results"
 import TextSummaryResults from "@/components/text-summary-results"
-import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw, Bug } from "lucide-react"
+import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw } from "lucide-react"
 
 interface AnalysisDashboardProps {
   dashboardData?: any
@@ -22,6 +21,8 @@ interface AnalysisDashboardProps {
 export function AnalysisDashboard({ dashboardData, reportData, sessionId }: AnalysisDashboardProps) {
   const [analysisStatus, setAnalysisStatus] = useState<"running" | "completed" | "paused" | "error">("completed")
   const [activeTab, setActiveTab] = useState("overview")
+  const [analysisResults, setAnalysisResults] = useState<any | null>(null)
+  const [localArtifacts, setLocalArtifacts] = useState<any | null>(null)
 
   // Debug: Log what data we're receiving
   console.log("🔍 AnalysisDashboard received data:", { 
@@ -29,6 +30,26 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
     analysisResults: dashboardData?.charts_data?.analysis_results,
     sessionId 
   })
+
+  // Load structured results from localStorage (set by upload flow)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('analysisResults') : null
+      if (raw) setAnalysisResults(JSON.parse(raw))
+    } catch (e) {
+      console.warn('Failed to load analysisResults from storage', e)
+    }
+  }, [])
+
+  // Load artifacts from localStorage as a fallback
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('analysisArtifacts') : null
+      if (raw) setLocalArtifacts(JSON.parse(raw))
+    } catch (e) {
+      console.warn('Failed to load analysisArtifacts from storage', e)
+    }
+  }, [])
 
   // Set status based on real data
   useEffect(() => {
@@ -41,6 +62,8 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
 
   // Use real data if available, fallback to demo data
   const dashboard = dashboardData?.dashboard || dashboardData
+  // Access artifacts from dashboardData or local fallback
+  const artifacts = (dashboardData && (dashboardData as any).artifacts) || localArtifacts || null
   const analysisProgress = dashboard ? {
     preprocessing: 100,
     topicModeling: dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0,
@@ -170,10 +193,6 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
                   <Brain className="w-4 h-4" />
                   Topics
                 </TabsTrigger>
-                <TabsTrigger value="debug" className="flex items-center gap-2 px-4">
-                  <Bug className="w-4 h-4" />
-                  Debug
-                </TabsTrigger>
                 <TabsTrigger value="sentiment" className="flex items-center gap-2 px-4">
                   <Target className="w-4 h-4" />
                   Sentiment
@@ -196,28 +215,72 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
 
               <TabsContent value="topics" className="mt-0">
                 {(() => {
-                  const topicResults = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'topic_modeling')?.results
+                  const fromDashboard = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'topic_modeling')?.results
+                  const topicResults = fromDashboard || analysisResults?.topic_modeling_results || null
                   console.log("🎯 Passing topic results to TopicModelingResults:", topicResults)
                   return (
-                    <TopicModelingResults 
-                      results={topicResults}
-                    />
+                    <div className="space-y-6">
+                      {artifacts && (
+                        <div className="space-y-4">
+                          <div className="text-sm text-muted-foreground">Visualizations</div>
+                          <div className="grid md:grid-cols-3 gap-4">
+                            {artifacts?.topic_distribution_pie && (
+                              <div className="border border-border rounded-lg p-2">
+                                <div className="text-sm mb-2">Topic Distribution</div>
+                                <img src={artifacts.topic_distribution_pie} alt="Topic Distribution" className="w-full rounded" />
+                              </div>
+                            )}
+                            {Array.isArray(artifacts?.wordclouds) && artifacts.wordclouds.slice(0, 5).map((url: string, idx: number) => (
+                              <img key={idx} src={url} alt={`Wordcloud ${idx}`} className="w-full rounded border" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {topicResults && (
+                        <TopicModelingResults results={topicResults} />
+                      )}
+                      {!topicResults && !artifacts && (
+                        <div className="text-sm text-muted-foreground">No topic results available yet.</div>
+                      )}
+                    </div>
                   )
                 })()}
               </TabsContent>
 
-              <TabsContent value="debug" className="mt-0">
-                <TopicModelingDebug />
-              </TabsContent>
 
               <TabsContent value="sentiment" className="mt-0">
                 {(() => {
-                  const sentimentResults = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'sentiment')?.results
+                  const fromDashboard = dashboard?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'sentiment')?.results
+                  const sentimentResults = fromDashboard || analysisResults?.sentiment_results || null
                   console.log("🎯 Passing sentiment results to SentimentAnalysisResults:", sentimentResults)
                   return (
-                    <SentimentAnalysisResults 
-                      results={sentimentResults}
-                    />
+                    <div className="space-y-6">
+                      {artifacts && (
+                        <div className="space-y-4">
+                          <div className="text-sm text-muted-foreground">Visualizations</div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {artifacts?.sentiment_distribution_bar && (
+                              <div className="border border-border rounded-lg p-2">
+                                <div className="text-sm mb-2">Sentiment Distribution</div>
+                                <img src={artifacts.sentiment_distribution_bar} alt="Sentiment Distribution" className="w-full rounded" />
+                              </div>
+                            )}
+                            {artifacts?.topic_sentiment_pie && (
+                              <div className="border border-border rounded-lg p-2">
+                                <div className="text-sm mb-2">Topic vs Sentiment (Pie)</div>
+                                <img src={artifacts.topic_sentiment_pie} alt="Topic Sentiment Pie" className="w-full rounded" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {sentimentResults && (
+                        <SentimentAnalysisResults results={sentimentResults} />
+                      )}
+                      {!sentimentResults && !artifacts && (
+                        <div className="text-sm text-muted-foreground">No sentiment results available yet.</div>
+                      )}
+                    </div>
                   )
                 })()}
               </TabsContent>

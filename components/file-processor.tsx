@@ -34,52 +34,6 @@ export function FileProcessor({ files }: { files: File[] }) {
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const continueAnalysisPipeline = async (sessionId: string, fileId: string) => {
-    try {
-      // Step 1: Process data
-      await fetch(`http://localhost:8000/process/data/${sessionId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      // Update progress
-      setProcessedFiles(prev => 
-        prev.map(f => 
-          f.id === fileId 
-            ? { ...f, processingProgress: 70 }
-            : f
-        )
-      )
-
-      // Step 2: Sentiment Analysis
-      await fetch(`http://localhost:8000/analyze/sentiment/${sessionId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      // Update progress
-      setProcessedFiles(prev => 
-        prev.map(f => 
-          f.id === fileId 
-            ? { ...f, processingProgress: 85 }
-            : f
-        )
-      )
-
-      // Step 3: Topic Modeling
-      await fetch(`http://localhost:8000/analyze/topics/${sessionId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      console.log(`🎉 Analysis complete for session: ${sessionId}`)
-      
-    } catch (error) {
-      console.error('Analysis pipeline error:', error)
-      throw error
-    }
-  }
-
   const getFileIcon = (type: string) => {
     if (type.includes('spreadsheet') || type.includes('excel')) {
       return FileSpreadsheet
@@ -127,8 +81,8 @@ export function FileProcessor({ files }: { files: File[] }) {
         )
       )
 
-      // Send file to backend for processing
-      const response = await fetch('http://localhost:8000/input/file', {
+  // Send file to backend for processing (unified /analyze endpoint)
+  const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
         body: formData,
       })
@@ -138,25 +92,40 @@ export function FileProcessor({ files }: { files: File[] }) {
       }
 
       const result = await response.json()
-      
-      // Get the session ID for continuing analysis
-      const sessionId = result.session_id
-      
-      // Update progress after successful upload
+
+      // Convert returned paths to absolute URLs via backend static mount
+      const toUrl = (p: string) => p.startsWith('http') ? p : `http://localhost:8000/${p.replace(/^\/?/, '')}`
+      const artifacts = {
+        wordclouds: (result.wordcloud_paths || []).map(toUrl),
+        topic_distribution_pie: toUrl(result.topic_distribution_pie),
+        sentiment_distribution_bar: toUrl(result.sentiment_distribution_bar),
+        topic_sentiment_bar: toUrl(result.topic_sentiment_bar),
+        topic_sentiment_pie: toUrl(result.topic_sentiment_pie),
+        enriched_csv: toUrl(result.enriched_csv),
+      }
+
+      // Persist artifacts for dashboard page
+      localStorage.setItem('analysisArtifacts', JSON.stringify(artifacts))
+
+      // Persist structured results for tabs
+      const structuredResults = {
+        topic_modeling_results: result.topic_modeling_results || null,
+        sentiment_results: result.sentiment_results || null,
+      }
+      localStorage.setItem('analysisResults', JSON.stringify(structuredResults))
+
+      // Update progress after successful analysis
       setProcessedFiles(prev => 
         prev.map(f => 
           f.id === processedFile.id 
-            ? { ...f, processingProgress: 50 }
+    ? { ...f, processingProgress: 90 }
             : f
         )
       )
-
-      // Continue with the full analysis pipeline
-      await continueAnalysisPipeline(sessionId, processedFile.id)
-
-      // Extract the processed content from backend response
-      const extractedText = result.processed_input?.content || ""
-      const wordCount = result.processed_input?.metadata?.word_count || 0
+      
+  // Backend returns artifact paths; we don't have direct text/wordCount here
+  const extractedText = ""
+  const wordCount = 0
       
       // Complete processing
       setProcessedFiles(prev => 
@@ -173,11 +142,11 @@ export function FileProcessor({ files }: { files: File[] }) {
         )
       )
 
-      // Redirect to dashboard after successful analysis
-      console.log(`🚀 Redirecting to dashboard for session: ${sessionId}`)
+      // Redirect to dashboard to view artifacts
+      console.log(`🎉 Analysis complete. Artifacts:`, artifacts)
       setTimeout(() => {
-        window.location.href = `/dashboard?session=${sessionId}`
-      }, 1000)
+        window.location.href = '/dashboard'
+      }, 800)
 
       return {
         ...processedFile,

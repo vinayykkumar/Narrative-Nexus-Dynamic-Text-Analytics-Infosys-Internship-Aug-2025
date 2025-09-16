@@ -82,7 +82,7 @@ export function FileUpload() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const supportedFormats = [".txt", ".csv", ".docx", ".pdf", ".json"]
+  const supportedFormats = [".xlsx", ".csv", ".txt"]
 
   return (
     <div className="space-y-4">
@@ -103,7 +103,7 @@ export function FileUpload() {
           <input
             type="file"
             multiple
-            accept=".txt,.csv,.docx,.pdf,.json"
+            accept=".xlsx,.csv,.txt"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"

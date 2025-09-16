@@ -50,16 +50,8 @@ npm run dev
 **Reporting**: jsPDF with comprehensive export options
 **API**: RESTful endpoints with full documentation
 
-## 📊 **Performance Metrics**
-- **Processing Speed**: ~1.8s average per analysis
-- **Accuracy**: 88% sentiment confidence, 89% topic coherence  
-- **UI Response**: Real-time interactive feedback
-- **Export Options**: PDF, JSON, email delivery
 
-## 📖 **Documentation**
 
-For complete technical documentation, API specifications, and deployment guides:
-👉 **[VIEW COMPLETE DOCUMENTATION](./PROJECT_DOCUMENTATION.md)** 👈
 
 ## 🎯 **Key Achievements**
 

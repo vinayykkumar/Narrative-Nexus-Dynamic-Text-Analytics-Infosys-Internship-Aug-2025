@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+nltk
+scikit-learn
+seaborn
+matplotlib
+wordcloud
+pillow
+openpyxl
+python-multipart
