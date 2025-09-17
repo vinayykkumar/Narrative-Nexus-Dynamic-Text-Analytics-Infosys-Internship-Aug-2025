@@ -11,6 +11,7 @@ import { TopicModelingResults } from "@/components/topic-modeling-results"
 import { SentimentAnalysisResults } from "@/components/sentiment-analysis-results"
 import TextSummaryResults from "@/components/text-summary-results"
 import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw } from "lucide-react"
+import Link from "next/link"
 
 interface AnalysisDashboardProps {
   dashboardData?: any
@@ -23,6 +24,7 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
   const [activeTab, setActiveTab] = useState("overview")
   const [analysisResults, setAnalysisResults] = useState<any | null>(null)
   const [localArtifacts, setLocalArtifacts] = useState<any | null>(null)
+  const [reportUrl, setReportUrl] = useState<string | null>(null)
 
   // Debug: Log what data we're receiving
   console.log("🔍 AnalysisDashboard received data:", { 
@@ -35,7 +37,11 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
   useEffect(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('analysisResults') : null
-      if (raw) setAnalysisResults(JSON.parse(raw))
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setAnalysisResults(parsed)
+  if (parsed?.report_html) setReportUrl("/reports/analysis")
+      }
     } catch (e) {
       console.warn('Failed to load analysisResults from storage', e)
     }
@@ -137,7 +143,10 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
               </CardTitle>
               <CardDescription>Real-time progress of your text analysis pipeline</CardDescription>
             </div>
-            {getStatusBadge(analysisStatus)}
+            <div className="flex items-center gap-2">
+              {/* Report link removed; use Generate Report button in Overview */}
+              {getStatusBadge(analysisStatus)}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">

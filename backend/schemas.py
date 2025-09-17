@@ -17,6 +17,7 @@ class AnalyzeResponse(BaseModel):
     topic_modeling_results: Optional[dict[str, Any]] = None
     sentiment_results: Optional[dict[str, Any]] = None
     dataset_summary: Optional[dict[str, Any]] = None
+    report_html: Optional[str] = None
     message: Optional[str] = None
 
 class SummarizeRequest(BaseModel):

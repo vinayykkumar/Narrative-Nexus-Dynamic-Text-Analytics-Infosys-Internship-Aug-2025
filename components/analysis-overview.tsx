@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { MetricsDashboard } from "@/components/visualizations/metrics-dashboard"
 import { FileText, MessageSquare, BarChart3, Brain, Target } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface AnalysisOverviewProps {
   dashboardData?: any
@@ -14,6 +15,7 @@ interface AnalysisOverviewProps {
 }
 
 export function AnalysisOverview({ dashboardData, reportData, sessionId }: AnalysisOverviewProps) {
+  const router = useRouter()
   // Load structured results from localStorage as a fallback
   const [localResults, setLocalResults] = useState<any | null>(null)
   useEffect(() => {
@@ -206,7 +208,10 @@ export function AnalysisOverview({ dashboardData, reportData, sessionId }: Analy
                 Review sentiment patterns and identify areas for improvement
               </p>
             </div>
-            <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
+            <div
+              className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => router.push('/reports/analysis')}
+            >
               <h4 className="font-medium mb-2">Generate Report</h4>
               <p className="text-sm text-muted-foreground">
                 Create a comprehensive report with all findings and insights

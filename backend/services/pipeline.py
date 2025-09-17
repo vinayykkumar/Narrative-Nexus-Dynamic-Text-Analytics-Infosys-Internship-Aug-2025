@@ -135,6 +135,33 @@ def run_analysis(
         # Non-fatal; if anything goes wrong we just skip per-topic summaries
         pass
 
+    # Build report
+    report_html: str | None = None
+    try:
+        from .reporting import build_report
+        # Prepare artifact URLs relative to FastAPI static mount
+        # Outputs are served at /outputs, and our out_dir is outputs/<job>
+        # We return relative paths to be resolved by frontend as http://host/<path>
+        base_rel = str(output_dir).lstrip("./")
+        artifacts = {
+            # Use absolute paths rooted at FastAPI static mount so report HTML can load images
+            "topic_distribution_pie": f"/{base_rel}/topic_distribution_pie.png",
+            "sentiment_distribution_bar": f"/{base_rel}/sentiment_distribution_bar.png",
+            "topic_sentiment_pie": f"/{base_rel}/topic_sentiment_pie.png",
+        }
+        report_path = build_report(
+            output_dir=output_dir,
+            topic_modeling_results=structured.get("topic_modeling_results") if isinstance(structured, dict) else None,
+            sentiment_results=structured.get("sentiment_results") if isinstance(structured, dict) else None,
+            dataset_summary=dataset_summary,
+            artifacts=artifacts,
+            job_name=output_dir.name,
+        )
+        if report_path:
+            report_html = str(report_path)
+    except Exception:
+        pass
+
     return {
         "wordcloud_paths": wordcloud_paths,
         "topic_distribution_pie": topic_distribution_pie,
@@ -146,4 +173,5 @@ def run_analysis(
         "topic_modeling_results": structured.get("topic_modeling_results") if isinstance(structured, dict) else None,
         "sentiment_results": structured.get("sentiment_results") if isinstance(structured, dict) else None,
         "dataset_summary": dataset_summary,
+        "report_html": report_html,
     }

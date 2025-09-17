@@ -104,6 +104,7 @@ export function FileProcessor({ files }: { files: File[] }) {
         topic_sentiment_bar: toUrl(result.topic_sentiment_bar),
         topic_sentiment_pie: toUrl(result.topic_sentiment_pie),
         enriched_csv: toUrl(result.enriched_csv),
+  report_html: result.report_html ? toUrl(result.report_html) : null,
       }
 
       // Persist artifacts for dashboard page
@@ -114,6 +115,7 @@ export function FileProcessor({ files }: { files: File[] }) {
         topic_modeling_results: result.topic_modeling_results || null,
   sentiment_results: result.sentiment_results || null,
   dataset_summary: result.dataset_summary || null,
+  report_html: artifacts.report_html,
       }
       localStorage.setItem('analysisResults', JSON.stringify(structuredResults))
 
