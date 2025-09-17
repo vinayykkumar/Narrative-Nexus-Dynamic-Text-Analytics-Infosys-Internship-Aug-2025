@@ -228,8 +228,8 @@ def run_pipeline(
         plt.show()
     plt.close()
 
-    # Sentiment analysis
-    print("Running VADER sentiment analysis...")
+    # Sentiment analysis (VADER) + Emotion analysis (NRC)
+    print("Running VADER sentiment analysis and NRC emotion scoring...")
     sia = SentimentIntensityAnalyzer()
     # Compute full VADER scores for structured output
     vader_scores = data["cleaned_text"].apply(lambda x: sia.polarity_scores(x))
@@ -238,6 +238,33 @@ def run_pipeline(
     data["neg_score"] = vader_scores.apply(lambda s: s.get("neg", 0.0))
     data["neu_score"] = vader_scores.apply(lambda s: s.get("neu", 0.0))
     data["sentiment_category"] = data["sentiments"].apply(get_sentiment)
+
+    # NRC Emotion Lexicon via NRCLex (lightweight installation)
+    try:
+        from nrclex import NRCLex
+        def nrc_emotions(text: str) -> dict:
+            if not isinstance(text, str) or not text.strip():
+                return {}
+            try:
+                emo = NRCLex(text)
+                # raw_emotion_scores is a dict emotion->score (int)
+                raw = dict(emo.raw_emotion_scores)
+                # Consider primary Plutchik emotions; ignore others like 'surprise', 'trust', 'anticipation' for now
+                subset = {k: float(raw.get(k, 0.0)) for k in ["joy", "sadness", "anger", "fear"]}
+                total = sum(subset.values()) or 1.0
+                # Normalize to proportions per document
+                return {k: (v / total) for k, v in subset.items()}
+            except Exception:
+                return {"joy": 0.0, "sadness": 0.0, "anger": 0.0, "fear": 0.0}
+
+        emo_series = data[text_column].astype(str).apply(nrc_emotions)
+        # Expand dicts into columns with fillna 0
+        for em in ["joy", "sadness", "anger", "fear"]:
+            data[f"emo_{em}"] = emo_series.apply(lambda d: float(d.get(em, 0.0)) if isinstance(d, dict) else 0.0)
+    except Exception:
+        # If NRCLex isn't available, fallback to zeros to keep pipeline robust
+        for em in ["joy", "sadness", "anger", "fear"]:
+            data[f"emo_{em}"] = 0.0
 
     # Sentiment distribution countplot
     plt.figure(figsize=(8, 6))
@@ -327,6 +354,13 @@ def run_pipeline(
         for _, row in results_rows.iterrows()
     ]
 
+    # Aggregate NRC emotions across dataset (mean of per-doc normalized proportions)
+    emo_means = {
+        "joy": float(data.get("emo_joy", pd.Series([0.0]*len(data))).mean() if len(data) else 0.0),
+        "sadness": float(data.get("emo_sadness", pd.Series([0.0]*len(data))).mean() if len(data) else 0.0),
+        "anger": float(data.get("emo_anger", pd.Series([0.0]*len(data))).mean() if len(data) else 0.0),
+        "fear": float(data.get("emo_fear", pd.Series([0.0]*len(data))).mean() if len(data) else 0.0),
+    }
     sentiment_results = {
         "overall_sentiment": overall_sentiment,
         "overall_confidence": overall_confidence,
@@ -335,13 +369,8 @@ def run_pipeline(
             "negative": float(dist.get("Negative", 0.0)),
             "neutral": float(dist.get("Neutral", 0.0)),
         },
-        # Placeholder emotional indicators (VADER is not emotion-aware)
-        "emotional_indicators": {
-            "joy": 0.0,
-            "sadness": 0.0,
-            "anger": 0.0,
-            "fear": 0.0,
-        },
+        # NRC Emotion indicators (mean normalized proportions across docs)
+        "emotional_indicators": emo_means,
         "results": detailed_results,
         "summary": {
             "total_sentences": int(len(data)),
