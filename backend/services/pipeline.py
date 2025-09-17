@@ -45,7 +45,11 @@ def _prepare_excel_input(file_path: Path, text_column: Optional[str]) -> tuple[P
 
     if suffix == ".txt":
         content = file_path.read_text(encoding="utf-8", errors="ignore")
-        df = pd.DataFrame({"text": [content]})
+        # Support multi-line txt by splitting into sentences/lines to create multiple docs for robustness
+        lines = [ln.strip() for ln in content.splitlines() if ln.strip()]
+        if not lines:
+            lines = [content]
+        df = pd.DataFrame({"text": lines})
         df.to_excel(out_excel, index=False)
         return out_excel, "text"
 
@@ -92,53 +96,18 @@ def run_analysis(
         # Load enriched CSV to get dominant_topic and original text
         df_enriched = pd.read_csv(enriched_csv)
         topics_struct = structured.get("topic_modeling_results") if isinstance(structured, dict) else None
-        if isinstance(topics_struct, dict) and isinstance(topics_struct.get("topics"), list):
-            # Local import to avoid heavy startup cost unless needed
+        if isinstance(topics_struct, dict):
+            # Local import for summarization only to compute overall dataset summary
             from .summarization import summarize_text
 
-            # Build a map from topic_id to combined text
-            topic_texts: dict[int, str] = {}
-            if "dominant_topic" in df_enriched.columns and chosen_text_col in df_enriched.columns:
-                for topic_id, group in df_enriched.groupby("dominant_topic"):
-                    texts = group[chosen_text_col].dropna().astype(str).tolist()
-                    combined = " ".join(texts)
-                    topic_texts[int(topic_id)] = combined
-
-            # Attach summaries
-            for topic in topics_struct["topics"]:
-                try:
-                    tid = int(topic.get("topic_id"))
-                except Exception:
-                    continue
-                combined_text = topic_texts.get(tid, "")
-                if not combined_text:
-                    topic["summary"] = ""
-                    topic["summary_method"] = "none"
-                    continue
-                try:
-                    method = "frequency" if fast_mode else "abstractive"
-                    summary, _key_sents, _scores, used = summarize_text(
-                        combined_text,
-                        method=method,
-                        max_sentences=3,
-                        max_tokens=128,
-                    )
-                except Exception:
-                    # Any unexpected failure: safe fallback
-                    summary = combined_text[:600] + ("..." if len(combined_text) > 600 else "")
-                    used = "fallback:truncated"
-                topic["summary"] = summary
-                topic["summary_method"] = used
-
-            # Compute overall dataset summary using all texts combined
+            # Compute overall dataset summary using all texts combined (TF-IDF extractive)
             try:
                 all_texts = df_enriched[chosen_text_col].dropna().astype(str).tolist()
                 combined_all = " ".join(all_texts)
                 if combined_all:
-                    # Always use extractive frequency for dataset summary (fast and dependency-light)
                     ds_summary_text, ds_key, ds_scores, ds_used = summarize_text(
                         combined_all,
-                        method="frequency",
+                        method="tfidf",
                         max_sentences=5,
                         max_tokens=160,
                     )

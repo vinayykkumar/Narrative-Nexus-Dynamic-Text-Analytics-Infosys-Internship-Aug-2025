@@ -139,14 +139,35 @@ def run_pipeline(
     print("Cleaning text...")
     data["cleaned_text"] = data[text_column].apply(clean_text_alternative)
 
+    # If cleaning resulted in entirely empty strings (e.g., very short dataset), fallback to raw text
+    if data["cleaned_text"].fillna("").str.len().sum() == 0:
+        data["cleaned_text"] = data[text_column].astype(str)
+
     # Vectorize (TF-IDF for NMF)
     print("Vectorizing with TfidfVectorizer...")
-    vectorizer = TfidfVectorizer(max_df=max_df, min_df=min_df, stop_words="english")
-    X = vectorizer.fit_transform(data["cleaned_text"])  # TF-IDF matrix
+    n_docs = int(len(data))
+    # Clamp min_df for very small datasets (e.g., single .txt document)
+    eff_min_df = 1 if n_docs <= 2 else min_df
+    eff_max_df = max_df if n_docs > 1 else 1.0
+    vectorizer = TfidfVectorizer(max_df=eff_max_df, min_df=eff_min_df, stop_words="english")
+    try:
+        X = vectorizer.fit_transform(data["cleaned_text"])  # TF-IDF matrix
+    except ValueError:
+        # Empty vocabulary or invalid min_df — fallback to lenient settings on raw text
+        vectorizer = TfidfVectorizer(max_df=1.0, min_df=1)
+        X = vectorizer.fit_transform(data[text_column].astype(str))
+    if X.shape[1] == 0:
+        # Still no features, inject a dummy token to avoid downstream crashes
+        data["__dummy__"] = "text"
+        vectorizer = TfidfVectorizer(min_df=1)
+        X = vectorizer.fit_transform(data["__dummy__"])  
 
     # NMF
-    print(f"Fitting NMF with n_topics={n_topics}...")
-    nmf_model = NMF(n_components=n_topics, random_state=42, init="nndsvda", max_iter=200)
+    # Ensure n_components is valid w.r.t features/docs (must be >=1 and <= n_features)
+    n_features = int(X.shape[1])
+    eff_topics = max(1, min(int(n_topics), n_features))
+    print(f"Fitting NMF with n_topics={eff_topics} (requested={n_topics}, features={n_features})...")
+    nmf_model = NMF(n_components=eff_topics, random_state=42, init="nndsvda", max_iter=200)
     nmf_model.fit(X)
 
     # Topic word clouds

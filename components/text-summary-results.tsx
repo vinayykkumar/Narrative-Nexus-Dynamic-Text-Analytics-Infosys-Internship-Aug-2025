@@ -27,21 +27,7 @@ export default function TextSummaryResults() {
   const [method, setMethod] = useState<'abstractive' | 'tfidf' | 'frequency'>('abstractive');
   const [maxSentences, setMaxSentences] = useState(3);
   const [error, setError] = useState<string | null>(null);
-  const [showTopicSummaries, setShowTopicSummaries] = useState(true);
-
-  // Load latest per-topic summaries from localStorage
-  const topicSummaries = (() => {
-    if (typeof window === 'undefined') return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
-    try {
-      const raw = localStorage.getItem('analysisResults');
-      if (!raw) return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
-      const parsed = JSON.parse(raw);
-      const topics = parsed?.topic_modeling_results?.topics || [];
-      return topics as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
-    } catch {
-      return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
-    }
-  })();
+  // Removed per-topic summaries; we show only overall dataset summary
 
   const datasetSummary = (() => {
     if (typeof window === 'undefined') return null as null | { summary: string; method_used?: string; key_sentences?: string[] };
@@ -106,59 +92,32 @@ export default function TextSummaryResults() {
 
   return (
     <div className="space-y-6">
-      {/* Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">View</div>
-        <div className="flex gap-2">
-          <Button variant={showTopicSummaries ? 'default' : 'outline'} size="sm" onClick={() => setShowTopicSummaries(true)}>Per-topic summaries</Button>
-          <Button variant={!showTopicSummaries ? 'default' : 'outline'} size="sm" onClick={() => setShowTopicSummaries(false)}>Custom text</Button>
-        </div>
-      </div>
-
-      {/* Per-topic summaries view */}
-      {showTopicSummaries && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Topic Summaries
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {datasetSummary && (
-              <div className="p-4 rounded-lg border bg-blue-50">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-medium">Overall Dataset Summary</div>
-                  {datasetSummary.method_used && (
-                    <Badge variant="outline" className="text-xs">{datasetSummary.method_used}</Badge>
-                  )}
-                </div>
-                <p className="text-gray-800 leading-relaxed">{datasetSummary.summary}</p>
+      {/* Overall Dataset Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            Overall Dataset Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {datasetSummary ? (
+            <div className="p-4 rounded-lg border bg-blue-50">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium">Summary</div>
+                {datasetSummary.method_used && (
+                  <Badge variant="outline" className="text-xs">{datasetSummary.method_used}</Badge>
+                )}
               </div>
-            )}
-            {topicSummaries.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No topic summaries found. Run an analysis first.</div>
-            ) : (
-              <div className="space-y-4">
-                {topicSummaries.map((t, idx) => (
-                  <div key={idx} className="p-4 rounded-lg border bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium">{t.topic_label ?? `Topic ${t.topic_id}`}</div>
-                      {t.summary_method && (
-                        <Badge variant="outline" className="text-xs">{t.summary_method}</Badge>
-                      )}
-                    </div>
-                    <p className="text-gray-800 leading-relaxed">{t.summary || 'No summary available for this topic.'}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              <p className="text-gray-800 leading-relaxed">{datasetSummary.summary}</p>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">Run an analysis to see the overall dataset summary.</div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Input Section */}
-      {!showTopicSummaries && (
+      {/* Input Section (optional custom text summarization) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -233,11 +192,10 @@ export default function TextSummaryResults() {
             </div>
           )}
         </CardContent>
-      </Card>
-      )}
+  </Card>
 
       {/* Results Section */}
-      {!showTopicSummaries && results && (
+  {results && (
         <div className="space-y-6">
           {/* Summary Overview */}
           <Card>
@@ -369,7 +327,7 @@ export default function TextSummaryResults() {
             </CardContent>
           </Card>
         </div>
-      )}
+  )}
     </div>
   );
 }
