@@ -174,6 +174,15 @@ def run_pipeline(
     print("Generating word clouds per topic...")
     wc_dir = output_dir / "wordclouds"
     wc_dir.mkdir(exist_ok=True)
+    # Clear stale wordclouds from previous runs (same upload name)
+    try:
+        for old in wc_dir.glob("*.png"):
+            try:
+                old.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
     # Prepare topic modeling JSON summary container
     topics_summary: list[dict] = []
     for topic_idx, topic in enumerate(nmf_model.components_):

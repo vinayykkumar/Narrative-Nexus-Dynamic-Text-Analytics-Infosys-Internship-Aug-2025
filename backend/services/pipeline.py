@@ -64,6 +64,7 @@ def run_analysis(
     output_dir: Optional[Path] = None,
     show_plots: bool = False,
     fast_mode: bool = False,
+    dataset_summary_max_sentences: int = 5,
 ):
     output_dir = Path(output_dir) if output_dir else Path("outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -83,7 +84,9 @@ def run_analysis(
     )
     # Collect artifact paths
     wc_dir = output_dir / "wordclouds"
-    wordcloud_paths = [str(p) for p in sorted(wc_dir.glob("*.png"))]
+    # Ensure we don't leak stale/extra wordclouds beyond n_topics requested
+    wordcloud_paths_all = [str(p) for p in sorted(wc_dir.glob("*.png"))]
+    wordcloud_paths = wordcloud_paths_all[: int(n_topics) if isinstance(n_topics, int) else 9999]
     topic_distribution_pie = str(output_dir / "topic_distribution_pie.png")
     sentiment_distribution_bar = str(output_dir / "sentiment_distribution_bar.png")
     topic_sentiment_bar = str(output_dir / "topic_sentiment_bar.png")
@@ -105,11 +108,14 @@ def run_analysis(
                 all_texts = df_enriched[chosen_text_col].dropna().astype(str).tolist()
                 combined_all = " ".join(all_texts)
                 if combined_all:
+                    # Map sentences to a rough token budget (heuristic)
+                    sentences = max(1, int(dataset_summary_max_sentences))
+                    token_budget = 32 * sentences
                     ds_summary_text, ds_key, ds_scores, ds_used = summarize_text(
                         combined_all,
                         method="tfidf",
-                        max_sentences=5,
-                        max_tokens=160,
+                        max_sentences=sentences,
+                        max_tokens=token_budget,
                     )
                     dataset_summary = {
                         "summary": ds_summary_text,

@@ -74,6 +74,20 @@ export function FileProcessor({ files }: { files: File[] }) {
   // Enable fast mode for quicker end-to-end analysis
   formData.append('fast_mode', 'true')
 
+      // Include Analysis Options from localStorage if available
+      try {
+        const topicCount = Number(localStorage.getItem('analysisTopicCount') || '5')
+        formData.append('n_topics', String(topicCount))
+      } catch {}
+
+      try {
+        const summaryLen = localStorage.getItem('analysisSummaryLength') || 'medium'
+        // Map summary length to number of sentences for dataset summary
+        const lengthToSentences: Record<string, number> = { short: 2, medium: 5, long: 8 }
+        const maxSentences = lengthToSentences[summaryLen] ?? 5
+        formData.append('dataset_summary_max_sentences', String(maxSentences))
+      } catch {}
+
       // Update progress as we start upload
       setProcessedFiles(prev => 
         prev.map(f => 

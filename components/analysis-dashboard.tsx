@@ -239,7 +239,7 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
                                 <img src={artifacts.topic_distribution_pie} alt="Topic Distribution" className="w-full rounded" />
                               </div>
                             )}
-                            {Array.isArray(artifacts?.wordclouds) && artifacts.wordclouds.slice(0, 5).map((url: string, idx: number) => (
+                            {Array.isArray(artifacts?.wordclouds) && artifacts.wordclouds.map((url: string, idx: number) => (
                               <img key={idx} src={url} alt={`Wordcloud ${idx}`} className="w-full rounded border" />
                             ))}
                           </div>

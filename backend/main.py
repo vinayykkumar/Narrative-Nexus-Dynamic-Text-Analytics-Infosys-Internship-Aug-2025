@@ -32,6 +32,7 @@ def analyze(
     max_df: float = Form(0.95),
     min_df: int = Form(2),
     fast_mode: bool = Form(False),
+    dataset_summary_max_sentences: int = Form(5),
 ):
     # Save uploaded file
     upload_dir = Path("uploads")
@@ -55,6 +56,7 @@ def analyze(
             output_dir=out_dir,
             show_plots=False,
             fast_mode=fast_mode,
+            dataset_summary_max_sentences=dataset_summary_max_sentences,
         )
         return AnalyzeResponse(**result, message="Analysis complete.")
     except Exception as e:

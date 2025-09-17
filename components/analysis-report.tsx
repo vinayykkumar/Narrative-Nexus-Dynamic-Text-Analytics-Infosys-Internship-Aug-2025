@@ -1,11 +1,14 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { BarChart3, FileText, Brain, Target } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import html2canvas from "html2canvas"
+import { jsPDF } from "jspdf"
 
 type SentimentAnalysisResult = {
   overall_sentiment: string
@@ -33,6 +36,8 @@ export default function AnalysisReport() {
   const [topics, setTopics] = useState<TopicModelingResults | null>(null)
   const [datasetSummary, setDatasetSummary] = useState<any | null>(null)
   const [artifacts, setArtifacts] = useState<any | null>(null)
+  const reportRef = useRef<HTMLDivElement | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     try {
@@ -48,6 +53,110 @@ export default function AnalysisReport() {
     } catch {}
   }, [])
 
+  const saveAsPdf = async () => {
+    if (!reportRef.current || exporting) return
+    setExporting(true)
+    try {
+      const node = reportRef.current
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        onclone: (doc) => {
+          const style = doc.createElement('style')
+          style.innerHTML = `
+            :root {
+              --background: #ffffff;
+              --foreground: #0f172a;
+              --card: #ffffff;
+              --card-foreground: #0f172a;
+              --muted: #f3f4f6;
+              --muted-foreground: #6b7280;
+              --accent: #f1f5f9;
+              --accent-foreground: #0f172a;
+              --popover: #ffffff;
+              --popover-foreground: #0f172a;
+              --primary: #0ea5e9;
+              --primary-foreground: #ffffff;
+              --secondary: #8b5cf6;
+              --secondary-foreground: #ffffff;
+              --border: #e5e7eb;
+            }
+            body { background: #ffffff !important; }
+          `
+          doc.head.appendChild(style)
+        }
+      })
+      const imgData = canvas.toDataURL("image/jpeg", 0.95)
+      const pdf = new jsPDF("p", "mm", "a4")
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+      const ts = new Date().toISOString().replace(/[:.]/g, "-")
+      pdf.save(`analysis-report-${ts}.pdf`)
+    } catch (e: any) {
+      console.error('Save as PDF failed', e)
+      // Fallback: open print dialog in a clean window to allow user to Save as PDF
+      try {
+        const content = reportRef.current?.innerHTML || ''
+        const css = `
+          :root {
+            --background: #ffffff;
+            --foreground: #0f172a;
+            --card: #ffffff;
+            --card-foreground: #0f172a;
+            --muted: #f3f4f6;
+            --muted-foreground: #6b7280;
+            --accent: #f1f5f9;
+            --accent-foreground: #0f172a;
+            --primary: #0ea5e9;
+            --primary-foreground: #ffffff;
+            --secondary: #8b5cf6;
+            --secondary-foreground: #ffffff;
+            --border: #e5e7eb;
+          }
+          * { box-sizing: border-box; }
+          body { background: #ffffff; color: #0f172a; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+          h1,h2,h3 { color: #0f172a; }
+          .border { border-color: #e5e7eb !important; }
+          img { max-width: 100%; height: auto; }
+          .rounded, .rounded-lg { border-radius: 0.5rem; }
+          .text-muted-foreground { color: #6b7280; }
+          .bg-muted { background: #f3f4f6; }
+        `
+        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Analysis Report</title><style>${css}</style></head><body>${content}</body></html>`
+        const w = window.open('', '_blank', 'width=1024,height=768')
+        if (w) {
+          w.document.open()
+          w.document.write(html)
+          w.document.close()
+          w.focus()
+          w.onload = () => {
+            try { w.print() } catch {}
+          }
+          w.onafterprint = () => { try { w.close() } catch {} }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback print failed', fallbackErr)
+      }
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const getSentimentBadge = (s?: string) => {
     if (!s) return <Badge variant="outline">N/A</Badge>
     const c = s.toLowerCase()
@@ -57,7 +166,7 @@ export default function AnalysisReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={reportRef} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -68,6 +177,11 @@ export default function AnalysisReport() {
             <h1 className="text-2xl font-serif font-semibold">Analysis Report</h1>
             <p className="text-sm text-muted-foreground">Generated with Narrative Nexus</p>
           </div>
+        </div>
+        <div>
+          <Button variant="outline" size="sm" onClick={saveAsPdf} disabled={exporting}>
+            {exporting ? 'Saving…' : 'Save as PDF'}
+          </Button>
         </div>
       </div>
 
@@ -123,7 +237,7 @@ export default function AnalysisReport() {
                   <div className="mt-3">
                     <div className="text-xs text-muted-foreground mb-2">Wordclouds</div>
                     <div className="grid grid-cols-2 gap-2">
-                      {artifacts.wordclouds.slice(0, 6).map((url: string, i: number) => (
+                      {artifacts.wordclouds.map((url: string, i: number) => (
                         <img key={i} src={url} alt={`Wordcloud ${i}`} className="w-full rounded border" />
                       ))}
                     </div>

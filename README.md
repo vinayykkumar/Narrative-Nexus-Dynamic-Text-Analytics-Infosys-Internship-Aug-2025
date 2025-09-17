@@ -107,7 +107,7 @@ pyenv local 3.11.0
 python --version
 
 ```
-python3 -m venv venv
+python3.11 -m venv .venv 
 source /home/git/projects/Narrative-Nexus-Dynamic-Text-Analytics-Infosys-Internship-Aug-2025/.venv/bin/activate 
 ```
 
