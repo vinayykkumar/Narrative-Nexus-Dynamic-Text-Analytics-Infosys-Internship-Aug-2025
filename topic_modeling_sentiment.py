@@ -36,8 +36,8 @@ from nltk.stem import WordNetLemmatizer
 from nltk.sentiment import SentimentIntensityAnalyzer
 
 # sklearn
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import NMF
 
 # viz
 import matplotlib
@@ -139,15 +139,15 @@ def run_pipeline(
     print("Cleaning text...")
     data["cleaned_text"] = data[text_column].apply(clean_text_alternative)
 
-    # Vectorize
-    print("Vectorizing with CountVectorizer...")
-    vectorizer = CountVectorizer(max_df=max_df, min_df=min_df, stop_words="english")
-    dtm = vectorizer.fit_transform(data["cleaned_text"])  # Document-term matrix
+    # Vectorize (TF-IDF for NMF)
+    print("Vectorizing with TfidfVectorizer...")
+    vectorizer = TfidfVectorizer(max_df=max_df, min_df=min_df, stop_words="english")
+    X = vectorizer.fit_transform(data["cleaned_text"])  # TF-IDF matrix
 
-    # LDA
-    print(f"Fitting LDA with n_topics={n_topics}...")
-    lda_model = LatentDirichletAllocation(n_components=n_topics, random_state=42)
-    lda_model.fit(dtm)
+    # NMF
+    print(f"Fitting NMF with n_topics={n_topics}...")
+    nmf_model = NMF(n_components=n_topics, random_state=42, init="nndsvda", max_iter=200)
+    nmf_model.fit(X)
 
     # Topic word clouds
     print("Generating word clouds per topic...")
@@ -155,7 +155,7 @@ def run_pipeline(
     wc_dir.mkdir(exist_ok=True)
     # Prepare topic modeling JSON summary container
     topics_summary: list[dict] = []
-    for topic_idx, topic in enumerate(lda_model.components_):
+    for topic_idx, topic in enumerate(nmf_model.components_):
         top_indices = topic.argsort()[:-11:-1]
         topic_words = [vectorizer.get_feature_names_out()[i] for i in top_indices]
         # Normalize weights for readability
@@ -188,7 +188,7 @@ def run_pipeline(
 
     # Topic distribution pie
     print("Computing topic distribution pie chart...")
-    topic_distribution = lda_model.transform(dtm)
+    topic_distribution = nmf_model.transform(X)
     topic_totals = topic_distribution.sum(axis=0)
     labels = [f"Topic {i}" for i in range(topic_totals.shape[0])]
 
@@ -279,7 +279,7 @@ def run_pipeline(
     # Build structured JSON outputs for API/frontend consumption
     # Topic modeling structured result
     topic_modeling_results = {
-        "algorithm": "LDA (scikit-learn)",
+        "algorithm": "NMF (scikit-learn, TF-IDF)",
         "num_topics": int(n_topics),
         "topics": topics_summary,
     }

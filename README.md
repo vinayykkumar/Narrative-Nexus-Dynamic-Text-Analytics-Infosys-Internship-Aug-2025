@@ -6,7 +6,7 @@ A comprehensive full-stack text analytics platform developed for the Infosys Int
 
 All 8-week development timeline objectives have been achieved with full-stack implementation including:
 - ✅ **Sentiment Analysis**: Real-time lexicon-based analysis with emotional indicators  
-- ✅ **Topic Modeling**: LDA/NMF implementations with interactive debugging
+- ✅ **Topic Modeling**: NMF (TF-IDF) implementation with interactive debugging
 - ✅ **Text Summarization**: Frequency-based and TF-IDF extractive methods
 - ✅ **Advanced Visualizations**: Interactive charts and analytics dashboards
 - ✅ **Comprehensive Reporting**: PDF export, email delivery, and data sharing
