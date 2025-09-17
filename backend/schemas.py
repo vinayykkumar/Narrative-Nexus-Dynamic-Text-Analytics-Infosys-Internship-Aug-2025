@@ -16,4 +16,22 @@ class AnalyzeResponse(BaseModel):
     enriched_csv: str
     topic_modeling_results: Optional[dict[str, Any]] = None
     sentiment_results: Optional[dict[str, Any]] = None
+    dataset_summary: Optional[dict[str, Any]] = None
     message: Optional[str] = None
+
+class SummarizeRequest(BaseModel):
+    text: str
+    method: Optional[str] = "abstractive"  # abstractive | tfidf | frequency
+    max_sentences: Optional[int] = 3
+    max_tokens: Optional[int] = 128
+    model_name: Optional[str] = "sshleifer/distilbart-cnn-12-6"
+
+class SummarizeResponse(BaseModel):
+    original_text: str
+    summary: str
+    key_sentences: list[str]
+    sentence_scores: dict[str, float]
+    method_used: str
+    compression_ratio: float
+    word_count_original: int
+    word_count_summary: int

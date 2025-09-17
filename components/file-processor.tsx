@@ -71,6 +71,8 @@ export function FileProcessor({ files }: { files: File[] }) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('session_id', `file_upload_${Date.now()}`)
+  // Enable fast mode for quicker end-to-end analysis
+  formData.append('fast_mode', 'true')
 
       // Update progress as we start upload
       setProcessedFiles(prev => 
@@ -110,7 +112,8 @@ export function FileProcessor({ files }: { files: File[] }) {
       // Persist structured results for tabs
       const structuredResults = {
         topic_modeling_results: result.topic_modeling_results || null,
-        sentiment_results: result.sentiment_results || null,
+  sentiment_results: result.sentiment_results || null,
+  dataset_summary: result.dataset_summary || null,
       }
       localStorage.setItem('analysisResults', JSON.stringify(structuredResults))
 

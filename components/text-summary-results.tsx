@@ -24,9 +24,36 @@ export default function TextSummaryResults() {
   const [inputText, setInputText] = useState('');
   const [results, setResults] = useState<SummarizationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [method, setMethod] = useState<'frequency' | 'tfidf'>('tfidf');
+  const [method, setMethod] = useState<'abstractive' | 'tfidf' | 'frequency'>('abstractive');
   const [maxSentences, setMaxSentences] = useState(3);
   const [error, setError] = useState<string | null>(null);
+  const [showTopicSummaries, setShowTopicSummaries] = useState(true);
+
+  // Load latest per-topic summaries from localStorage
+  const topicSummaries = (() => {
+    if (typeof window === 'undefined') return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
+    try {
+      const raw = localStorage.getItem('analysisResults');
+      if (!raw) return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
+      const parsed = JSON.parse(raw);
+      const topics = parsed?.topic_modeling_results?.topics || [];
+      return topics as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
+    } catch {
+      return [] as Array<{ topic_id: number; topic_label: string; summary?: string; summary_method?: string }>;
+    }
+  })();
+
+  const datasetSummary = (() => {
+    if (typeof window === 'undefined') return null as null | { summary: string; method_used?: string; key_sentences?: string[] };
+    try {
+      const raw = localStorage.getItem('analysisResults');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.dataset_summary ?? null;
+    } catch {
+      return null;
+    }
+  })();
 
   const handleSummarize = async () => {
     if (!inputText.trim()) {
@@ -79,7 +106,59 @@ export default function TextSummaryResults() {
 
   return (
     <div className="space-y-6">
+      {/* Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">View</div>
+        <div className="flex gap-2">
+          <Button variant={showTopicSummaries ? 'default' : 'outline'} size="sm" onClick={() => setShowTopicSummaries(true)}>Per-topic summaries</Button>
+          <Button variant={!showTopicSummaries ? 'default' : 'outline'} size="sm" onClick={() => setShowTopicSummaries(false)}>Custom text</Button>
+        </div>
+      </div>
+
+      {/* Per-topic summaries view */}
+      {showTopicSummaries && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Topic Summaries
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {datasetSummary && (
+              <div className="p-4 rounded-lg border bg-blue-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-medium">Overall Dataset Summary</div>
+                  {datasetSummary.method_used && (
+                    <Badge variant="outline" className="text-xs">{datasetSummary.method_used}</Badge>
+                  )}
+                </div>
+                <p className="text-gray-800 leading-relaxed">{datasetSummary.summary}</p>
+              </div>
+            )}
+            {topicSummaries.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No topic summaries found. Run an analysis first.</div>
+            ) : (
+              <div className="space-y-4">
+                {topicSummaries.map((t, idx) => (
+                  <div key={idx} className="p-4 rounded-lg border bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">{t.topic_label ?? `Topic ${t.topic_id}`}</div>
+                      {t.summary_method && (
+                        <Badge variant="outline" className="text-xs">{t.summary_method}</Badge>
+                      )}
+                    </div>
+                    <p className="text-gray-800 leading-relaxed">{t.summary || 'No summary available for this topic.'}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Input Section */}
+      {!showTopicSummaries && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -101,11 +180,12 @@ export default function TextSummaryResults() {
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium">Summarization Method</label>
-              <Select value={method} onValueChange={(value: 'frequency' | 'tfidf') => setMethod(value)}>
+        <Select value={method} onValueChange={(value: 'abstractive' | 'tfidf' | 'frequency') => setMethod(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+          <SelectItem value="abstractive">Abstractive (BART)</SelectItem>
                   <SelectItem value="frequency">Frequency-based</SelectItem>
                   <SelectItem value="tfidf">TF-IDF</SelectItem>
                 </SelectContent>
@@ -154,9 +234,10 @@ export default function TextSummaryResults() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Results Section */}
-      {results && (
+      {!showTopicSummaries && results && (
         <div className="space-y-6">
           {/* Summary Overview */}
           <Card>
