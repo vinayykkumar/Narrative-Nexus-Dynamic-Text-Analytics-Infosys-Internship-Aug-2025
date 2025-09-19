@@ -2,11 +2,33 @@
 
 This repository contains a full-stack setup for NLP tasks: Sentiment Analysis, Text Summarization, and Topic Modeling.
 
-- `ml/nlp_tasks.ipynb`: End-to-end notebook that trains/evaluates models and saves artifacts.
-- `ml/app.py`: FastAPI service to serve predictions using the saved models.
-- `ml/README.md`: Service setup, endpoints, and troubleshooting.
-- `data/`: CSV datasets used by the notebook.
-- `backend/`, `frontend/`: App scaffolds (if applicable).
+## Project Structure
+
+narrative_nexus/
+├── data/
+│   ├── bbc-text.csv
+│   ├── imdb-dataset.csv
+│   └── cnn_dailymail.csv
+├── frontend/                # frontend ui code
+├── models/
+│   ├── lda_model.pkl
+│   ├── nmf_model.pkl
+│   ├── tfidf_vectorizer.pkl
+│   └── sentiment_model/      # HF cached or saved
+├── src/
+│   ├── preprocessing.py
+│   ├── topic_modeling.py
+│   ├── sentiment.py
+│   ├── summarization.py
+│   ├── insights.py
+│   └── utils.py
+├── backend/
+│   ├── app.py                # FastAPI app
+│   └── api_schema.py
+├── pipeline.py
+├── requirements.txt
+└── README.md
+
 
 ## Getting started
 
@@ -15,17 +37,5 @@ This repository contains a full-stack setup for NLP tasks: Sentiment Analysis, T
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r .\ml\requirements.txt
-```
-
-3) Open the notebook
-
-- Open `ml/narrative_nexus.ipynb` in VS Code and Run All to reproduce training and artifacts.
-
-2) Run the API
-
-```powershell
-python .\ml\app.py
-# or
-.\.venv\Scripts\python.exe -m uvicorn ml.app:app --host 127.0.0.1 --port 8001 --log-level info
+pip install -r requirements.txt
 ```
