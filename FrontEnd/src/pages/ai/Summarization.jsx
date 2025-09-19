@@ -15,20 +15,25 @@ export default function Summarization() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Summarization</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6 text-center text-white">Text Summarization</h1>
+
       <textarea
-        className="border p-2 w-full rounded"
-        rows="6"
+        className="border p-3 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        rows="5"
+        placeholder="Enter the text for sentiment analysis..."
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <button
-        onClick={handleSummarize}
-        className="mt-3 bg-green-600 text-white px-4 py-2 rounded"
-      >
-        Summarize
-      </button>
+
+      <div className="text-center mt-4">
+        <button
+          onClick={handleSummarize}
+          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-indigo-800 transition"
+        >
+          Summarize
+        </button>
+      </div>
 
       {summary && (
         <div className="mt-4 bg-gray-100 p-4 rounded">

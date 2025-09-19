@@ -1,4 +1,4 @@
-python-multipart
+
 # Data Handling
 pandas
 numpy
@@ -14,16 +14,12 @@ transformers
 sentence-transformers
 textblob
 
-# Visualization (optional for notebooks/reports)
-matplotlib
-wordcloud
-
-# Summarization helper
-sumy
 
 # Backend
 fastapi
 uvicorn
+pydantic
+python-multipart
 
 # File parsing
 docx2txt
@@ -33,3 +29,4 @@ PyPDF2
 # Utils
 tqdm
 python-dotenv
+

@@ -1,0 +1,41 @@
+# src/insights.py
+from typing import Dict, Any
+import joblib
+import os
+import numpy as np
+from src.preprocessing import preprocess_series
+from src.summarization import extractive_summary, abstractive_summary
+from src.topic_modeling import fit_tfidf
+
+MODEL_DIR = "../models"
+
+def load_models():
+    tfidf = joblib.load(os.path.join(MODEL_DIR,"tfidf_vectorizer.pkl"))
+    nmf = joblib.load(os.path.join(MODEL_DIR,"nmf_model.pkl"))
+    # load gensim LDA if needed separately
+    return tfidf, nmf
+
+def get_topics_for_doc(text: str, tfidf, nmf, n_top=3):
+    vec = tfidf.transform([text])
+    topic_dist = nmf.transform(vec)[0]
+    top_idx = np.argsort(topic_dist)[::-1][:n_top]
+    return [{"topic_id": int(i), "score": float(topic_dist[i])} for i in top_idx]
+
+def generate_insights(text: str, sentiment_result: Dict[str, Any], tfidf=None, nmf=None):
+    summ_ext = extractive_summary(text, max_sentences=3)
+    summ_abs = abstractive_summary(text)
+    topics = get_topics_for_doc(text, tfidf, nmf) if (tfidf and nmf) else []
+    sentiment = sentiment_result
+    # simple rule-based suggestions
+    suggestions = []
+    if sentiment.get("label") == "NEGATIVE" or sentiment.get("score",0) < 0.6:
+        suggestions.append("Investigate causes of negative sentiment, prioritize frequently mentioned terms.")
+    else:
+        suggestions.append("Leverage positive trends; identify frequently mentioned strengths for promotion.")
+    return {
+        "extractive_summary": summ_ext,
+        "abstractive_summary": summ_abs,
+        "topics": topics,
+        "sentiment": sentiment,
+        "suggestions": suggestions
+    }

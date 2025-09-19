@@ -12,8 +12,8 @@ const Layout = () => {
   const sidebarLinks = [
     { name: "Dashboard", path: "/ai", icon: LayoutDashboard },
     { name: "Text Analysis", path: "/ai/text-analysis", icon: TextSearch },
-    { name: "Text Summarization", path: "/ai/text-summarization", icon: Scissors },
     { name: "Sentiment Analysis", path: "/ai/sentiment-analysis", icon: Smile },
+    { name: "Text Summarization", path: "/ai/text-summarization", icon: Scissors },
     { name: "Reports & Insights", path: "/ai/reports", icon: ReceiptTextIcon },
   ];
 

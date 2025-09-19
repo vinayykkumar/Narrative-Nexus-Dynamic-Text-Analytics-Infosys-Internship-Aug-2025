@@ -1,96 +1,96 @@
-import React, { useState } from 'react'
-import { ArrowUp, FilePlusIcon, Folder, X } from 'lucide-react'
+import React, { useState } from "react";
+import { CircleX, FilePlusIcon, Folder } from "lucide-react";
 
 const Analysis = () => {
-  const [file, setFile] = useState(null)
-  const [text, setText] = useState("")
-  const [analysis, setAnalysis] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
+  const [file, setFile] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
+  const [dragActive, setDragActive] = useState(false);
 
   const allowedTypes = [
-    "text/plain", // .txt
-    "text/csv", // .csv
-    "application/pdf", // .pdf
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-  ]
+    "text/plain",
+    "text/csv",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
 
   // Validate and set file
   const validateFile = (selectedFile) => {
-    if (!selectedFile) return false
+    if (!selectedFile) return false;
     if (!allowedTypes.includes(selectedFile.type)) {
-      alert("Unsupported file type! Please upload .txt, .csv, .pdf, or .docx files only.")
-      return false
+      alert(
+        "Unsupported file type! Please upload .txt, .csv, .pdf, or .docx files only."
+      );
+      return false;
     }
-    return true
-  }
+    return true;
+  };
 
-  // Handle file selection
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0]
-    if (validateFile(selectedFile)) {
-      setFile(selectedFile)
-    } else {
-      e.target.value = "" // reset input
-    }
-  }
+    const selectedFile = e.target.files[0];
+    if (validateFile(selectedFile)) setFile(selectedFile);
+    else e.target.value = "";
+  };
 
   // Drag & drop handlers
   const handleDragOver = (e) => {
-    e.preventDefault()
-    setDragActive(true)
-  }
-
-  const handleDragLeave = () => {
-    setDragActive(false)
-  }
-
+    e.preventDefault();
+    setDragActive(true);
+  };
+  const handleDragLeave = () => setDragActive(false);
   const handleDrop = (e) => {
-    e.preventDefault()
-    setDragActive(false)
-    const droppedFile = e.dataTransfer.files[0]
-    if (validateFile(droppedFile)) {
-      setFile(droppedFile)
-    }
-  }
+    e.preventDefault();
+    setDragActive(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (validateFile(droppedFile)) setFile(droppedFile);
+  };
 
-  // Submit handler
+  // Submit file → backend
   const handleSubmit = async () => {
-    if (!file && !text.trim()) {
-      alert("Please upload a file or enter text!")
-      return
-    }
-    setLoading(true)
+    if (!file) return alert("Please upload a file first!");
+    setLoading(true);
+    setAnalysis(null);
+    setStatus("Extracting text from file...");
 
     try {
-      const formData = new FormData()
-      if (file) formData.append("file", file)
-      if (text.trim()) formData.append("text", text)
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const response = await fetch("http://127.0.0.1:8000/analyze", {
+      setStatus("Extracting text from file...");
+      const response = await fetch("http://127.0.0.1:8000/analyze-file", {
         method: "POST",
         body: formData,
-      })
+      });
 
-      const result = await response.json()
-      setAnalysis(result)
+      setStatus("Running analysis...");
+      const result = await response.json();
+      setAnalysis(result);
+      setStatus("✅ Analysis completed!");
     } catch (error) {
-      console.error("Error:", error)
+      console.error("Error:", error);
+      setStatus("❌ Error analyzing file.");
+      alert("Error analyzing file");
     } finally {
-      setLoading(false)
+      setLoading(false);
+      setTimeout(() => setStatus(""), 3000); // clear after 3s
     }
-  }
+  };
 
   return (
     <section className="py-2">
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-10">
-        {/* Left Side */}
-        <div className="max-w-auto w-full p-6 bg-white/70 rounded-lg border border-gray-500/30 shadow-[0px_1px_15px_0px] shadow-black/10 text-sm">
+        {/* Upload Section */}
+        <div className="w-full p-6 bg-white/70 rounded-lg border border-gray-500/30 shadow-md">
           <div className="flex items-center justify-center w-11 h-11 bg-gray-500/10 rounded-full">
             <Folder className="text-primary w-5 h-5" />
           </div>
-          <h2 className="text-2xl text-gray-800 font-medium mt-3">Upload a file</h2>
-          <p className="text-gray-700/80 mt-1">Attach the file below</p>
+          <h2 className="text-2xl text-gray-800 font-medium mt-3">
+            Upload a file
+          </h2>
+          <p className="text-gray-700/80 mt-1">
+            Attach a .txt, .csv, .pdf, or .docx file
+          </p>
 
           {/* Drag & Drop Zone */}
           <label
@@ -103,9 +103,10 @@ const Analysis = () => {
             }`}
           >
             <FilePlusIcon className="text-primary" />
-            <p className="text-gray-500">Drag and Drop files here</p>
+            <p className="text-gray-500">Drag & Drop your file here</p>
             <p className="text-gray-500">
-              Or <span className="text-primary underline">click here</span> to select
+              Or <span className="text-primary underline">click here</span> to
+              select
             </p>
             <p className="text-gray-500">Supports: .txt, .csv, .pdf, .docx</p>
             <input
@@ -119,99 +120,134 @@ const Analysis = () => {
 
           {/* File Preview */}
           {file && (
-            <div className="mt-4 px-4 py-2 rounded-xl flex items-center justify-between bg-gradient-to-r from-green-700 to-green-500">
+            <div className="mt-4 px-4 py-2 rounded-xl flex items-center justify-between bg-blue-100">
               <div>
                 <p className="text-gray-700 font-medium">{file.name}</p>
-                <p className="text-gray-400 text-xs">{(file.size / 1024).toFixed(2)} KB</p>
+                <p className="text-gray-400 text-xs">
+                  {(file.size / 1024).toFixed(2)} KB
+                </p>
               </div>
               <button
                 onClick={() => setFile(null)}
                 className="text-red-500 hover:text-red-700 cursor-pointer"
-                aria-label="Remove file"
               >
-                <X className="w-5 h-5" />
+                <CircleX className="w-5 h-5" />
               </button>
             </div>
           )}
 
-          <div className="text-black flex justify-center text-center my-4">OR</div>
+          {/* Buttons + Status */}
+          <div className="mt-6 flex flex-col items-end gap-2">
+            <div className="flex gap-4">
+              <button
+                type="button"
+                className="px-9 py-2 border border-gray-400 hover:bg-gray-100 transition-all text-gray-600 rounded-full"
+                onClick={() => {
+                  setFile(null);
+                  setAnalysis(null);
+                  setStatus("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-6 py-2 bg-primary hover:bg-indigo-600 transition-all text-white rounded-full"
+                onClick={handleSubmit}
+                disabled={loading || !file}
+              >
+                {loading ? "Analyzing..." : "Analyze"}
+              </button>
+            </div>
 
-          {/* Text Area */}
-          <div className="max-w-xl w-full border border-gray-500 rounded-xl overflow-hidden mt-4">
-            <textarea
-              className="w-full p-3 pb-0 resize-none outline-none bg-transparent text-gray-800"
-              placeholder="Enter your text here..."
-              rows="4"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            ></textarea>
-          </div>
-
-          {/* Submit Button */}
-          <div className="mt-6 flex justify-end gap-4">
-            <button
-              type="button"
-              className="px-9 py-2 border border-gray-500/50  hover:bg-blue-100/30 active:scale-95 transition-all text-gray-500 rounded-full"
-              onClick={() => {
-                setFile(null)
-                setText("")
-                setAnalysis(null)
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="px-6 py-2 bg-primary hover:bg-indigo-600 active:scale-95 transition-all text-white rounded-full"
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? "Analyzing..." : "Analyze"}
-            </button>
+            {/* Status & Spinner */}
+            {status && (
+              <div className="flex items-center gap-2 text-blue-600 text-sm">
+                {loading && (
+                  <svg
+                    className="animate-spin h-4 w-4 text-blue-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    ></path>
+                  </svg>
+                )}
+                <span>{status}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Side - Analysis */}
-        <div className="max-w-auto w-full p-6 bg-white/70 rounded-lg border border-gray-500/30 shadow-[0px_1px_15px_0px] shadow-black/10">
-          <h2 className="text-2xl text-gray-800 font-medium">Analysis Summary</h2>
+        {/* Analysis Results */}
+        <div className="w-full p-6 bg-white/70 rounded-lg border border-gray-500/30 shadow-md">
+          <h2 className="text-2xl text-gray-800 font-medium">
+            Analysis Summary
+          </h2>
 
-          {!analysis ? (
+          {!analysis && !loading && (
             <p className="text-gray-500/80 mt-[50%] flex items-center justify-center text-center">
-              Once you upload a file, NarrativeNexus will analyze the text and generate insights.
+              Upload a file to generate insights.
             </p>
-          ) : (
+          )}
+
+          {/* Skeleton loader */}
+          {loading && (
+            <div className="mt-6 space-y-4 animate-pulse">
+              <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+              <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+            </div>
+          )}
+
+          {/* Results */}
+          {analysis && !loading && (
             <ul className="mt-6 space-y-4 text-sm">
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full text-xs font-bold">
-                  1
-                </span>
-                <p className="text-gray-600">
-                  <span className="font-medium">Topics Identified:</span>{" "}
-                  {analysis.topics?.join(", ")}
-                </p>
+              <li>
+                <span className="font-medium">Topics:</span>{" "}
+                {analysis.topics
+                  ?.map(
+                    (t) => `${t.keywords.join(", ")} (${t.score.toFixed(2)})`
+                  )
+                  .join(" | ")}
               </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full text-xs font-bold">
-                  2
-                </span>
-                <p className="text-gray-600">
-                  <span className="font-medium">Sentiment:</span> {analysis.sentiment}
-                </p>
+
+              <li>
+                <span className="font-medium">Sentiment:</span>{" "}
+                {analysis.sentiment?.label} (
+                {analysis.sentiment?.score.toFixed(2)})
               </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full text-xs font-bold">
-                  3
-                </span>
-                <p className="text-gray-600">
-                  <span className="font-medium">Summary:</span> {analysis.summary}
-                </p>
+              <li>
+                <span className="font-medium">Extractive Summary:</span>{" "}
+                {analysis.extractive_summary}
+              </li>
+              <li>
+                <span className="font-medium">Abstractive Summary:</span>{" "}
+                {analysis.abstractive_summary}
+              </li>
+              <li>
+                <span className="font-medium">Suggestions:</span>{" "}
+                {analysis.suggestions?.join(" ")}
               </li>
             </ul>
           )}
         </div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default Analysis
+export default Analysis;
