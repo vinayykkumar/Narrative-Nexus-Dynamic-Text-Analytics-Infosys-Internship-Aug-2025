@@ -2,7 +2,7 @@ import React from "react";
 
 const About = () => {
   return (
-    <section className="py-16 bg-[url(/bg_gradient.png)] bg-center bg-cover bg-black">
+    <section className="py-28 min-h-screen bg-[url(/bg.svg)] bg-black">
       <h1 className="text-3xl md:text-5xl text-primary font-semibold text-center mx-auto">
         About NarrativeNexus
       </h1>
@@ -86,6 +86,7 @@ const About = () => {
           </div>
         </div>
       </div>
+
     </section>
   );
 };

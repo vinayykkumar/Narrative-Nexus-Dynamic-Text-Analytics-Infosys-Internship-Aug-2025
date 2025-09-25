@@ -3,7 +3,7 @@ import React from 'react'
 
 const Login = () => {
   return (
-    <div className='py-20 px-4 sm:px-20 xl:px-32 bg-[url(bg_gradient.png)] bg-black min-h-screen flex items-center justify-center'>
+    <div className='py-20 px-4 sm:px-20 xl:px-32 bg-[url(bg.svg)] bg-black min-h-screen flex items-center justify-center'>
     <form className="max-w-96 w-full text-center border border-gray-300/60 rounded-2xl px-8 bg-transparent mx-auto my-20">
             <h1 className="text-white text-3xl mt-10 font-medium">Login</h1>
             <p className="text-gray-400 text-sm mt-2">Please sign in to continue</p>

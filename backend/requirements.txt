@@ -10,6 +10,7 @@ gensim
 spacy
 joblib
 torch
+tensorflow
 transformers
 sentence-transformers
 textblob

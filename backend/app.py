@@ -2,18 +2,23 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import joblib
 import os
+import sys
+from pathlib import Path
 from typing import Optional
 import io
 import csv
 from docx import Document
 from PyPDF2 import PdfReader
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from src.preprocessing import clean_text
-from src.sentiment import get_sentiment_pipeline, analyze_texts
+from src.sentiment import analyze_sentiment_text, load_sentiment_models, SentimentInferenceModels
 from src.summarization import extractive_summary, abstractive_summary
-from src.insights import get_topics_for_doc, generate_insights
+from src.insights import load_models, get_topics_for_doc, generate_insights
 
 app = FastAPI(title="NarrativeNexus API")
 
@@ -25,10 +30,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_DIR = "../models"
+MODEL_DIR = ROOT_DIR / "models"
 tfidf = None
 nmf = None
-sent_pipeline = None
+sentiment_models: Optional[SentimentInferenceModels] = None
 
 class TextIn(BaseModel):
     text: str
@@ -38,15 +43,23 @@ class TextIn(BaseModel):
 # -----------------------------
 @app.on_event("startup")
 def load_all():
-    global tfidf, nmf, sent_pipeline
+    global tfidf, nmf, sentiment_models
+    if os.getenv("NARRATIVENEXUS_TEST_MODE") == "1":
+        tfidf = None
+        nmf = None
+        sentiment_models = None
+        print("⚠️ Running in test mode – models not loaded.")
+        return
+
     try:
-        tfidf = joblib.load(os.path.join(MODEL_DIR, "tfidf_vectorizer.pkl"))
-        nmf = joblib.load(os.path.join(MODEL_DIR, "nmf_model.pkl"))
+        tfidf, nmf = load_models(MODEL_DIR)
         print("✅ Topic models loaded")
     except Exception as e:
+        tfidf = None
+        nmf = None
         print("⚠️ Model load warning:", e)
-    sent_pipeline = get_sentiment_pipeline()
-    print("✅ Sentiment pipeline loaded")
+    sentiment_models = load_sentiment_models(MODEL_DIR)
+    print("✅ Sentiment models ready")
 
 # -----------------------------
 # Text Endpoints
@@ -55,16 +68,19 @@ def load_all():
 async def summarize(payload: TextIn):
     txt = payload.text
     cleaned = clean_text(txt)
-    ext = extractive_summary(cleaned)
-    absum = abstractive_summary(cleaned)
+    ext = extractive_summary(txt)
+    try:
+        absum = abstractive_summary(txt)
+    except Exception:
+        absum = None
     return {"extractive": ext, "abstractive": absum}
 
 @app.post("/sentiment")
 async def sentiment(payload: TextIn):
     txt = payload.text
     cleaned = clean_text(txt)
-    out = analyze_texts(sent_pipeline, [cleaned])
-    return {"sentiment": out[0]}
+    out = analyze_sentiment_text(cleaned, sentiment_models)
+    return out
 
 @app.post("/topics")
 async def topics(payload: TextIn, n_topics: Optional[int] = 3):
@@ -79,8 +95,8 @@ async def topics(payload: TextIn, n_topics: Optional[int] = 3):
 async def analyze(payload: TextIn):
     txt = payload.text
     cleaned = clean_text(txt)
-    sent = analyze_texts(sent_pipeline, [cleaned])[0]
-    insights = generate_insights(cleaned, sent, tfidf, nmf)
+    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    insights = generate_insights(txt, sent, tfidf, nmf)
     return insights
 
 # -----------------------------
@@ -121,7 +137,8 @@ async def analyze_file(file: UploadFile = File(...)):
         if not text.strip():
             return {"error": "No text extracted from file."}
 
-        sent = analyze_texts(sent_pipeline, [text])[0]
+        cleaned = clean_text(text)
+        sent = analyze_sentiment_text(cleaned, sentiment_models)
         insights = generate_insights(text, sent, tfidf, nmf)
         return insights
 
