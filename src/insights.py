@@ -19,11 +19,30 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top=3):
     vec = tfidf.transform([text])
     topic_dist = nmf.transform(vec)[0]
     top_idx = np.argsort(topic_dist)[::-1][:n_top]
-    return [{"topic_id": int(i), "score": float(topic_dist[i])} for i in top_idx]
+    # Derive keywords for each topic if possible (using top features)
+    feature_names = getattr(tfidf, 'get_feature_names_out', None)
+    keywords = []
+    if feature_names:
+        feature_names = tfidf.get_feature_names_out()
+        for i in top_idx:
+            # top terms per topic
+            comps = nmf.components_[i]
+            top_terms = [feature_names[j] for j in comps.argsort()[-5:][::-1]]
+            keywords.append(top_terms)
+    result = []
+    for rank, i in enumerate(top_idx):
+        item = {"topic_id": int(i), "score": float(topic_dist[i])}
+        if keywords:
+            item["keywords"] = keywords[rank]
+        result.append(item)
+    return result
 
 def generate_insights(text: str, sentiment_result: Dict[str, Any], tfidf=None, nmf=None):
     summ_ext = extractive_summary(text, max_sentences=3)
-    summ_abs = abstractive_summary(text)
+    try:
+        summ_abs = abstractive_summary(text)
+    except Exception:
+        summ_abs = None
     topics = get_topics_for_doc(text, tfidf, nmf) if (tfidf and nmf) else []
     sentiment = sentiment_result
     # simple rule-based suggestions

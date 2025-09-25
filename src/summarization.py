@@ -1,10 +1,23 @@
 # src/summarization.py
-from transformers import pipeline
-import nltk
-nltk.download('punkt')
-from nltk.tokenize import sent_tokenize
+import os
+import warnings
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+import nltk
+from nltk.tokenize import sent_tokenize
+
+# Avoid TF auto-imports; prefer PyTorch to prevent keras errors
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
+try:
+    from transformers import pipeline
+except Exception as e:
+    pipeline = None  # Will handle gracefully below
+
+# Ensure punkt is available
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', quiet=True)
 
 # Extractive (simple TF-IDF + sentence scoring)
 def extractive_summary(text: str, max_sentences: int = 3):
@@ -21,14 +34,30 @@ def extractive_summary(text: str, max_sentences: int = 3):
 
 # Abstractive (Hugging Face)
 _abstractive_summarizer = None
-def get_abstractive_summarizer(model_name: str = "sshleifer/distilbart-cnn-12-6"):  # smaller/fast model
-    global _abstractive_summarizer
-    if _abstractive_summarizer is None:
-        _abstractive_summarizer = pipeline("summarization", model=model_name, device=-1)
-    return _abstractive_summarizer
+def get_abstractive_summarizer(model_name: str = "sshleifer/distilbart-cnn-12-6"):
+    """Returns a CPU summarization pipeline using PyTorch backend.
 
-def abstractive_summary(text: str, max_length:int = 130, min_length:int=30):
+    If transformers or a compatible backend isn't available, returns None.
+    """
+    global _abstractive_summarizer
+    if _abstractive_summarizer is not None:
+        return _abstractive_summarizer
+    if pipeline is None:
+        warnings.warn("transformers unavailable; abstractive summarization disabled")
+        return None
+    try:
+        # device=-1 forces CPU; framework='pt' prefers PyTorch
+        _abstractive_summarizer = pipeline("summarization", model=model_name, device=-1, framework="pt")
+        return _abstractive_summarizer
+    except Exception as e:
+        warnings.warn(f"Failed to init abstractive summarizer: {e}")
+        _abstractive_summarizer = None
+        return None
+
+def abstractive_summary(text: str, max_length:int = 130, min_length:int = 30):
     s = get_abstractive_summarizer()
+    if s is None:
+        raise RuntimeError("Abstractive summarizer not available")
     # chunk if very long
     if len(text.split()) > 800:
         # naive chunking by sentences

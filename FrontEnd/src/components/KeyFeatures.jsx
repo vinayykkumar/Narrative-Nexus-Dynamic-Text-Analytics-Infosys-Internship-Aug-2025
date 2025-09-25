@@ -41,7 +41,7 @@ const features = [
 
 const KeyFeatures = () => {
   return (
-    <div className="px-4 py-20 sm:px-20 xl:px-32 bg-[url(bg_gradient.png)] bg-black min-h-screen" id="ai-features">
+    <div className="px-4 py-20 sm:px-20 xl:px-32 bg-black bg-[url(/bg.svg)] min-h-screen" id="ai-features">
       <div className="text-center">
         <h2 className="text-primary text-3xl md:text-5xl
          font-bold mb-4">AI Features</h2>
@@ -56,7 +56,7 @@ const KeyFeatures = () => {
           return (
             <div
               key={index}
-              className="p-8 m-4 max-w-xs rounded-lg bg-white/60 shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              className="p-8 m-4 max-w-xs rounded-lg bg-white/50 shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <div
                 className="w-12 h-12 flex items-center justify-center rounded-xl"

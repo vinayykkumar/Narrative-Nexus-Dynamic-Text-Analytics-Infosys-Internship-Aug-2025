@@ -1,15 +1,19 @@
 # src/topic_modeling.py
+import os
+from pathlib import Path
+from typing import List
+
 import joblib
-from sklearn.decomposition import NMF
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 import numpy as np
 import pandas as pd
-from gensim import corpora, models
 import gensim
-from typing import List
-import os
+from gensim import corpora, models
+from sklearn.decomposition import NMF
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 
-MODEL_DIR = "../models"
+# Resolve models directory to project root/models
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_DIR = BASE_DIR / "models"
 
 def fit_tfidf(texts: List[str], max_features=10000):
     tfidf = TfidfVectorizer(max_df=0.95, min_df=5, max_features=max_features, ngram_range=(1,2))
@@ -38,10 +42,10 @@ def train_lda(texts: List[str], n_topics=10, passes=10):
 
 def save_models(tfidf, nmf, lda, dictionary):
     os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(tfidf, os.path.join(MODEL_DIR,"tfidf_vectorizer.pkl"))
-    joblib.dump(nmf, os.path.join(MODEL_DIR,"nmf_model.pkl"))
-    lda.save(os.path.join(MODEL_DIR,"lda_model.gensim"))
-    dictionary.save(os.path.join(MODEL_DIR,"lda_dictionary.dict"))
+    joblib.dump(tfidf, str(MODEL_DIR / "tfidf_vectorizer.pkl"))
+    joblib.dump(nmf, str(MODEL_DIR / "nmf_model.pkl"))
+    lda.save(str(MODEL_DIR / "lda_model.gensim"))
+    dictionary.save(str(MODEL_DIR / "lda_dictionary.dict"))
 
 if __name__ == "__main__":
     df = pd.read_csv("../data/preprocessed_all.csv")

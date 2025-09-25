@@ -1,32 +1,20 @@
 import { Route, Routes } from "react-router-dom"
 import Home from "./pages/Home"
 import Login from "./pages/Auth/Login"
-import Layout from "./pages/ai/Layout"
-import Dashboard from "./pages/ai/Dashboard"
-import Analysis from "./pages/ai/Analysis"
-import Reports from "./pages/ai/Reports"
-import Sentiment from "./pages/ai/Sentiment"
-import Summarization from "./pages/ai/Summarization"
-
-
-
+import Analysis from "./pages/analysis"
+import Navbar from "./components/Navbar"
+import About from "./pages/About"
 
 function App() {
   
   return (
     <>
+    <Navbar/>
     <Routes>
       <Route path="/" element={<Home/>}/>
       <Route path="/login" element={<Login/>}/>
-
-      <Route path="/ai" element={<Layout/>}>
-      <Route index element={<Dashboard/>}/>
-      <Route path="/ai/text-analysis" element={<Analysis/>}/>
-      <Route path="/ai/text-summarization" element={<Summarization/>}/>
-      <Route path="/ai/sentiment-analysis" element={<Sentiment/>}/>
-      <Route path="/ai/reports" element={<Reports/>}/>
-      </Route>
-      
+      <Route path="/analyze" element={<Analysis/>}/>
+      <Route path="/about-us" element={<About/>}/>
     </Routes>
     </>
   )
