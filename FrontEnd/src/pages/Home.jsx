@@ -3,6 +3,7 @@ import Hero from "../components/Hero";
 import KeyFeatures from "../components/KeyFeatures";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
+import HowItWorks from "../components/HowItWorks";
 
 
 
@@ -11,6 +12,7 @@ const Home = () => {
     <>
     <Hero />
     <KeyFeatures />
+    <HowItWorks/>
     <Footer />
     </>
   );
