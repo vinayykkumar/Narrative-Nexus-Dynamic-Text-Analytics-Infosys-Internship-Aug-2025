@@ -1,62 +1,89 @@
 # pipeline.py
-"""
-Unified pipeline runner for NarrativeNexus
-Run this once to prepare data and models.
-"""
+"""End-to-end orchestration for Narrative Nexus model training."""
 
-import os
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 
-from src.preprocessing import load_csvs, preprocess_series
-from src.topic_modeling import fit_tfidf, train_nmf, train_lda, save_models
-from src.summarization import extractive_summary, abstractive_summary
-from src.sentiment import get_sentiment_pipeline, analyze_texts
+from src.insights import attach_topic_sentiment, build_topic_insights
+from src.preprocessing import (
+    apply_preprocessing,
+    load_and_merge_datasets,
+    save_preprocessed_dataset,
+)
+from src.sentiment import MAX_LEN, load_imdb_dataset, load_sentiment_models, train_sentiment_models
+from src.topic_modeling import train_topic_models
 
-DATA_DIR = "data"
-MODEL_DIR = "models"
 
-DATASETS = [
-    os.path.join(DATA_DIR, "bbc-text.csv"),
-    os.path.join(DATA_DIR, "imdb-dataset.csv"),
-    os.path.join(DATA_DIR, "cnn_dailymail.csv"),
-]
+DATA_DIR = Path("data")
+MODEL_DIR = Path("models")
 
-def main():
-    os.makedirs(MODEL_DIR, exist_ok=True)
 
-    print("📥 Loading datasets...")
-    df = load_csvs(DATASETS)
-    print(f"Loaded {len(df)} rows from {len(DATASETS)} files.")
+def main() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("🧹 Preprocessing text...")
-    df['clean_text'] = preprocess_series(df['text'])
-    out_path = os.path.join(DATA_DIR, "preprocessed_all.csv")
-    df.to_csv(out_path, index=False)
-    print(f"Saved preprocessed dataset -> {out_path}")
+    print("📥 Loading and merging datasets (BBC, CNN, IMDB)...")
+    merged_df = load_and_merge_datasets(
+        DATA_DIR / "bbc-text.csv",
+        DATA_DIR / "cnn_dailymail.csv",
+        DATA_DIR / "imdb-dataset.csv",
+    )
+    print(f"Merged dataset shape: {merged_df.shape}")
 
-    print("📊 Training topic models...")
-    texts = df['clean_text'].astype(str).tolist()
-    tfidf, X = fit_tfidf(texts, max_features=10000)
-    nmf, W, H = train_nmf(X, n_topics=12)
-    lda, dictionary, corpus = train_lda(texts, n_topics=12)
-    save_models(tfidf, nmf, lda, dictionary)
-    print(f"Saved topic models -> {MODEL_DIR}")
+    print("🧹 Applying preprocessing and lemmatization...")
+    processed_df = apply_preprocessing(merged_df)
+    merged_path = DATA_DIR / "merged_preprocessed.csv"
+    save_preprocessed_dataset(processed_df, merged_path)
+    if merged_path.exists():
+        try:
+            merged_display = merged_path.resolve().relative_to(Path.cwd())
+        except ValueError:
+            merged_display = merged_path.resolve()
+    else:
+        merged_display = merged_path
+    print(f"Saved preprocessed dataset -> {merged_display}")
 
-    print("💡 Testing summarization & sentiment...")
-    sample = df['clean_text'].iloc[0]
-    print("Sample text:", sample[:200], "...")
+    print("📊 Training topic models (LDA & NMF)...")
+    topic_artifacts = train_topic_models(processed_df["clean_text"].astype(str).tolist(), n_topics=5, model_dir=MODEL_DIR)
+    print(f"LDA Perplexity: {topic_artifacts.lda_perplexity:.4f}")
+    print(f"LDA Coherence: {topic_artifacts.lda_coherence:.4f}")
+    print(f"NMF Coherence: {topic_artifacts.nmf_coherence:.4f}")
 
-    print("\nExtractive summary:")
-    print(extractive_summary(sample))
+    print("🧠 Training sentiment models (Rule-based, Logistic Regression, LSTM)...")
+    imdb_df = load_imdb_dataset(DATA_DIR / "imdb-dataset.csv")
+    sentiment_metrics = train_sentiment_models(imdb_df, model_dir=MODEL_DIR)
+    print("Rule-based metrics:", sentiment_metrics.rule_metrics)
+    print("Logistic Regression metrics:", sentiment_metrics.ml_metrics)
+    print("LSTM metrics:", sentiment_metrics.dl_metrics)
 
-    print("\nAbstractive summary:")
-    print(abstractive_summary(sample))
+    print("🔗 Integrating topics with sentiment signals...")
+    sentiment_models = load_sentiment_models(MODEL_DIR)
+    integrated_df = attach_topic_sentiment(
+        processed_df,
+        topic_artifacts.lda,
+        topic_artifacts.count_vectorizer,
+        sentiment_models.dl_model,
+        sentiment_models.tokenizer,
+        max_len=MAX_LEN,
+    )
 
-    sentiment = get_sentiment_pipeline()
-    res = analyze_texts(sentiment, [sample])
-    print("\nSentiment result:", res[0])
+    insights_df = build_topic_insights(integrated_df)
+    insights_path = DATA_DIR / "topic_insights.csv"
+    insights_df.to_csv(insights_path, index=False)
+    if insights_path.exists():
+        try:
+            insights_display = insights_path.resolve().relative_to(Path.cwd())
+        except ValueError:
+            insights_display = insights_path.resolve()
+    else:
+        insights_display = insights_path
+    print(f"💾 Topic-level insights saved -> {insights_display}")
 
-    print("\n✅ Pipeline completed successfully!")
+    print("\n✅ Narrative Nexus pipeline completed successfully!")
+
 
 if __name__ == "__main__":
     main()

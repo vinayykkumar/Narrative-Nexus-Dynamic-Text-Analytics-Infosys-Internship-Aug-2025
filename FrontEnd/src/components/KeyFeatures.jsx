@@ -56,7 +56,7 @@ const KeyFeatures = () => {
           return (
             <div
               key={index}
-              className="p-8 m-4 max-w-xs rounded-xl bg-white/10 border border-white/20 shadow-lg text-primary hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              className="p-8 m-4 max-w-xs rounded-xl bg-black border border-white/20 shadow-lg text-primary hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <div
                 className="w-12 h-12 flex items-center justify-center rounded-xl"

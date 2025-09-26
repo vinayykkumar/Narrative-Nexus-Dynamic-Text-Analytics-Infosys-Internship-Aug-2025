@@ -10,6 +10,7 @@ gensim
 spacy
 joblib
 torch
+tensorflow
 transformers
 sentence-transformers
 textblob
@@ -29,4 +30,3 @@ PyPDF2
 # Utils
 tqdm
 python-dotenv
-
