@@ -6,6 +6,7 @@ import {
   Folder,
   Loader2,
   MessageSquare,
+  NotepadText,
   Sparkles,
   Wand2,
 } from "lucide-react";
@@ -28,6 +29,17 @@ const formatProbability = (value) => {
   if (typeof value === "number") return value.toFixed(2);
   const num = Number(value);
   return Number.isFinite(num) ? num.toFixed(2) : "--";
+};
+
+const formatPercentage = (value, fractionDigits = 1) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${(value * 100).toFixed(fractionDigits)}%`;
+  }
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return `${(numeric * 100).toFixed(fractionDigits)}%`;
+  }
+  return "0%";
 };
 
 const Analysis = () => {
@@ -177,9 +189,58 @@ const Analysis = () => {
     analysis?.sentiment?.overall?.label ?? analysis?.sentiment?.label ?? "--";
   const overallConfidence =
     analysis?.sentiment?.overall?.confidence ?? analysis?.sentiment?.score ?? null;
+  const overallProbability = analysis?.sentiment?.overall?.probability ?? null;
+  const sentimentDistribution = analysis?.sentiment?.distribution ?? {};
+  const positiveShare = Number.isFinite(sentimentDistribution.positive)
+    ? sentimentDistribution.positive
+    : 0;
+  const neutralShare = Number.isFinite(sentimentDistribution.neutral)
+    ? sentimentDistribution.neutral
+    : 0;
+  const negativeShare = Number.isFinite(sentimentDistribution.negative)
+    ? sentimentDistribution.negative
+    : 0;
+
+  const sentimentCards = [
+    {
+      key: "positive",
+      label: "Positive",
+      value: formatPercentage(positiveShare),
+      description: "The text contains positive expressions or praise.",
+      className:
+        "bg-emerald-500/10 border border-emerald-400/40 text-emerald-200",
+    },
+    {
+      key: "neutral",
+      label: "Neutral",
+      value: formatPercentage(neutralShare),
+      description: "The text is mostly factual or lacks emotional tone.",
+      className:
+        "bg-amber-500/10 border border-amber-400/40 text-amber-200",
+    },
+    {
+      key: "negative",
+      label: "Negative",
+      value: formatPercentage(negativeShare),
+      description: "The text mentions complaints or dissatisfaction.",
+      className:
+        "bg-rose-500/10 border border-rose-400/40 text-rose-200",
+    },
+  ];
+
+  const emojiMap = {
+    positive: "😄",
+    neutral: "😐",
+    negative: "😟",
+  };
+  const overallEmoji = emojiMap[String(overallLabel).toLowerCase()] ?? "🤔";
+  const overallConfidencePercent =
+    overallConfidence != null ? formatPercentage(overallConfidence) : "--";
+
+  const topics = Array.isArray(analysis?.topics) ? analysis.topics : [];
 
   return (
-    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-20">
+    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-24">
       <h1 className="text-3xl md:text-4xl font-semibold text-primary text-center">
         Text Analysis Platform
       </h1>
@@ -193,7 +254,7 @@ const Analysis = () => {
             Upload a File or Paste Text
           </h2>
           <p className="text-gray-300 mt-1 text-sm">
-            Supports: .txt, .csv, .pdf, .docx
+            Supports .txt, .csv, .pdf, .docx
           </p>
 
           <label
@@ -241,7 +302,7 @@ const Analysis = () => {
             <textarea
               value={textInput}
               onChange={(event) => setTextInput(event.target.value)}
-              placeholder="paste or type text to analyze..."
+              placeholder="Paste or type text to analyze."
               className="w-full min-h-[160px] bg-white/10 border border-white/20 rounded-lg p-4 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
             />
           </div>
@@ -268,7 +329,7 @@ const Analysis = () => {
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center bg-white/10 backdrop-blur border border-white/20 rounded-xl py-10 px-6 space-y-5">
+          <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 backdrop-blur rounded-xl py-10 px-6 space-y-5">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
             <div className="text-gray-300 text-center space-y-2">
               <p className="font-medium">Analyzing data...</p>
@@ -303,15 +364,47 @@ const Analysis = () => {
         <div ref={resultRef} className="space-y-6">
           {analysis && !loading && (
             <div className="flex flex-col gap-6">
-              <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex flex-col gap-5">
+                <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold text-primary text-lg">Sentiment</h3>
+                  <h3 className="font-semibold text-primary text-lg">Sentiment Analysis</h3>
                 </div>
-                <p className="text-gray-300 text-sm">
-                  {overallLabel.toUpperCase()} {overallConfidence != null ? `(${formatProbability(overallConfidence)})` : ""}
-                </p>
-                <div className="text-xs text-gray-400 space-y-1 mt-3">
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {sentimentCards.map((card) => (
+                    <div
+                      key={card.key}
+                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur ${card.className}`}
+                    >
+                      <p className="text-sm text-center uppercase tracking-wide text-white/70">{card.label}</p>
+                      <p className="text-3xl text-center font-semibold mt-2 text-white">{card.value}</p>
+                      <p className="text-xs text-center mt-3 text-white/70 leading-snug">{card.description}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-black/40 border border-white/10 rounded-xl p-5 text-center">
+                  <p className="text-lg uppercase tracking-wide text-white/60">Overall Sentiment</p>
+                  <div className="mt-3 flex items-center justify-center gap-2">
+                    <span className="text-3xl font-semibold text-white">{overallLabel.toUpperCase()}</span>
+                    <span className="text-3xl" role="img" aria-label="overall sentiment emoji">
+                      {overallEmoji}
+                    </span>
+                  </div>
+                  <p className="text-md text-gray-300 mt-2">
+                    {overallConfidencePercent} confidence
+                  </p>
+                  {overallProbability != null && (
+                    <p className="text-sm text-gray-400 mt-1">
+                      Combined positive probability: {formatPercentage(overallProbability)}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-3">
+                    This is the dominant sentiment based on the ensemble analysis across rule-based, ML, LSTM, and transformer models.
+                  </p>
+                </div>
+
+                <div className="text-sm text-gray-400 space-y-1 border-t border-white/10 pt-4">
                   <p>
                     Rule-based polarity {formatProbability(analysis.sentiment?.rule_based?.polarity)}, subjectivity {formatProbability(analysis.sentiment?.rule_based?.subjectivity)}
                   </p>
@@ -332,35 +425,86 @@ const Analysis = () => {
                   <Wand2 className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold text-primary text-lg">Topics</h3>
                 </div>
-                <p className="text-gray-300 text-sm">
-                  {analysis.topics && analysis.topics.length > 0
-                    ? analysis.topics
-                        .map(
-                          (topic) =>
-                            `Topic ${(topic.topic_id ?? topic.id ?? 0) + 1}: ${(topic.keywords || [])
-                              .slice(0, 6)
-                              .join(", ")} (score ${formatProbability(topic.score)})`
-                        )
-                        .join(" | ")
-                    : "No topics available."}
-                </p>
+
+                {topics.length > 0 && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {topics.map((topic, index) => {
+                        const label = topic?.label || `Topic ${index + 1}`;
+                        const relevanceBase = Number(
+                          topic?.share ?? topic?.confidence ?? topic?.score ?? 0
+                        );
+                        const normalizedRelevance = Number.isFinite(relevanceBase)
+                          ? Math.max(relevanceBase, 0)
+                          : 0;
+                        const relevancePercent = `${(normalizedRelevance * 100).toFixed(1)}%`;
+                        const description =
+                          topic?.description ||
+                          (Array.isArray(topic?.keywords) && topic.keywords.length > 0
+                            ? `Key signals: ${topic.keywords.slice(0, 6).join(", ")}`
+                            : "This theme was identified as a significant pattern in the text.");
+
+                        return (
+                          <div
+                            key={`${label}-${index}`}
+                            className="p-4 rounded-lg bg-gradient-to-tr from-blue-300/20 via-indigo-400/10 to-white/10 text-white shadow transition"
+                          >
+                            <div className="text-xl font-bold mb-2 text-center">{label}</div>
+                            <div className="text-lg font-semibold text-center mb-2">
+                              {relevancePercent} relevance
+                            </div>
+                            <div className="text-sm text-center text-white/80"> {description}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-6 p-4 rounded-lg bg-gradient-to-bl from-blue-300/20 via-indigo-400/10 to-white/10 text-white text-center">
+                      <div className="text-xl font-semibold mb-2 text-white/60">Overall Key Themes</div>
+                      
+                      <div className="text-2xl my-4 font-bold">
+                        {topics
+                          .map((topic, index) => topic?.label || `Topic ${index + 1}`)
+                          .join(", ")}
+                      </div>
+                      <div className="text-sm text-white/80">
+                        These are the most dominant themes detected from the input text.
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {analysis.extractive_summary && (
+              {(analysis.extractive_summary || analysis.abstractive_summary) && (
                 <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3">Extractive Summary</h3>
-                  <p className="text-gray-300 text-sm whitespace-pre-line">
-                    {analysis.extractive_summary}
-                  </p>
-                </div>
-              )}
+                  <div className="flex items-center gap-2 mb-3">
+                    <NotepadText className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-primary text-lg">Summaries</h3>
+                  </div>
 
-              {analysis.abstractive_summary && (
-                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3">Abstractive Summary</h3>
-                  <p className="text-gray-300 text-sm whitespace-pre-line">
-                    {analysis.abstractive_summary}
-                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {analysis.extractive_summary && (
+                      <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
+                        <h3 className="font-semibold text-indigo-500 text-lg mb-3">
+                          Extractive Summary
+                        </h3>
+                        <p className="text-gray-200 text-sm whitespace-pre-line">
+                          {analysis.extractive_summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {analysis.abstractive_summary && (
+                      <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
+                        <h3 className="font-semibold text-indigo-500 text-lg mb-3">
+                          Abstractive Summary
+                        </h3>
+                        <p className="text-gray-200 text-sm whitespace-pre-line">
+                          {analysis.abstractive_summary}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -394,7 +538,7 @@ const Analysis = () => {
           )}
 
           {!analysis && !loading && (
-            <div className="p-6 bg-white/10 backdrop-blur border border-white/20 rounded-xl text-sm text-gray-400 flex items-center gap-3">
+            <div className="p-6 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-400 flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-primary" />
               <p>
                 Submit text or upload a document to reveal sentiment, topic insights, summaries, and tailored suggestions.
