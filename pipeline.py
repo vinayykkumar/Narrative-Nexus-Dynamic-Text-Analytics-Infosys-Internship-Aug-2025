@@ -65,8 +65,7 @@ def main() -> None:
         processed_df,
         topic_artifacts.lda,
         topic_artifacts.count_vectorizer,
-        sentiment_models.dl_model,
-        sentiment_models.tokenizer,
+        sentiment_models,
         max_len=MAX_LEN,
     )
 

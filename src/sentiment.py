@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -180,6 +181,9 @@ def load_sentiment_models(model_dir: Path = MODEL_DIR) -> SentimentInferenceMode
                 "sentiment-analysis",
                 model="distilbert-base-uncased-finetuned-sst-2-english",
                 return_all_scores=True,
+                framework="pt",
+                device=-1,
+                truncation=True,
             )
         except Exception as exc:  # pragma: no cover - runtime guard
             transformer = None
@@ -215,7 +219,11 @@ def _predict_transformer(texts: Sequence[str], models: SentimentInferenceModels)
     if pipe is None:
         return None
 
-    outputs = pipe(list(texts))
+    try:
+        outputs = pipe(list(texts))
+    except Exception as exc:
+        print("⚠️ Transformer inference failed:", exc)
+        return None
     probabilities: List[float] = []
     labels: List[str] = []
 
@@ -244,63 +252,120 @@ def _prob_to_label(prob: float) -> str:
 
 def analyze_sentiment_text(text: str, models: Optional[SentimentInferenceModels]) -> Dict[str, Any]:
     rule_info = rule_based_sentiment(text)
+    rule_info["confidence"] = abs(float(rule_info["probability"]) - 0.5) * 2
 
     if models is None:
-        avg_prob = rule_info["probability"]
+        avg_prob = float(rule_info["probability"])
         label = rule_info["label"]
-        confidence = abs(rule_info["polarity"])
+        confidence = abs(avg_prob - 0.5) * 2
+        neutral_weight = max(0.0, 1.0 - confidence)
+        active_weight = 1.0 - neutral_weight
+        positive_weight = max(0.0, avg_prob * active_weight)
+        negative_weight = max(0.0, (1.0 - avg_prob) * active_weight)
+        total_weight = positive_weight + negative_weight + neutral_weight
+        if total_weight > 0:
+            distribution = {
+                "positive": positive_weight / total_weight,
+                "neutral": neutral_weight / total_weight,
+                "negative": negative_weight / total_weight,
+            }
+        else:
+            distribution = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
+
         return {
-            "overall": {"label": label, "confidence": confidence},
+            "overall": {"label": label, "confidence": confidence, "probability": avg_prob},
             "rule_based": rule_info,
             "ml": None,
             "dl": None,
             "transformer": None,
+            "distribution": distribution,
         }
 
     ml_prob = _predict_ml([text], models)
     ml_info = None
     if ml_prob is not None:
         ml_prob = float(ml_prob[0])
-        ml_info = {"label": _prob_to_label(ml_prob), "probability": ml_prob}
+        ml_confidence = abs(ml_prob - 0.5) * 2
+        ml_info = {"label": _prob_to_label(ml_prob), "probability": ml_prob, "confidence": ml_confidence}
 
     dl_prob = _predict_dl([text], models)
     dl_info = None
     if dl_prob is not None:
         dl_prob = float(dl_prob[0])
-        dl_info = {"label": _prob_to_label(dl_prob), "probability": dl_prob}
+        dl_confidence = abs(dl_prob - 0.5) * 2
+        dl_info = {"label": _prob_to_label(dl_prob), "probability": dl_prob, "confidence": dl_confidence}
 
     transformer_probs = _predict_transformer([text], models)
     transformer_info = None
     if transformer_probs is not None:
         prob = float(transformer_probs[0][0])
         label = transformer_probs[1][0]
-        transformer_info = {"label": label, "probability": prob}
+        transformer_confidence = abs(prob - 0.5) * 2
+        transformer_info = {"label": label, "probability": prob, "confidence": transformer_confidence}
 
-    probabilities = [rule_info["probability"]]
-    weights = [0.5]
-    if ml_info is not None:
-        probabilities.append(ml_info["probability"])
-        weights.append(1.0)
-    if dl_info is not None:
-        probabilities.append(dl_info["probability"])
-        weights.append(1.0)
-    if transformer_info is not None:
-        probabilities.append(transformer_info["probability"])
-        weights.append(2.0)
+    contributions: List[Tuple[float, float]] = []
+    votes: Counter[str] = Counter()
 
-    if probabilities:
-        avg_prob = float(np.average(probabilities, weights=weights))
+    rule_prob = float(rule_info["probability"])
+    rule_weight = 1.3
+    contributions.append((rule_prob, rule_weight))
+    votes[_prob_to_label(rule_prob)] += 1
+
+    def _register_model(info: Optional[Dict[str, float]], base_weight: float) -> None:
+        if info is None:
+            return
+        prob = float(info["probability"])
+        confidence = abs(prob - 0.5) * 2
+        adaptive_weight = base_weight * (0.35 + 0.65 * confidence)
+        disagreement = abs(prob - rule_prob)
+        if disagreement >= 0.35:
+            adaptive_weight *= 0.3
+        elif disagreement >= 0.2:
+            adaptive_weight *= 0.55
+        contributions.append((prob, adaptive_weight))
+        votes[_prob_to_label(prob)] += 1
+
+    _register_model(ml_info, base_weight=0.9)
+    _register_model(dl_info, base_weight=0.9)
+    _register_model(transformer_info, base_weight=1.6)
+
+    if contributions:
+        total_weight = sum(weight for _, weight in contributions)
+        weighted_sum = sum(prob * weight for prob, weight in contributions)
+        avg_prob = weighted_sum / total_weight if total_weight else rule_prob
     else:
-        avg_prob = 0.5
+        avg_prob = rule_prob
+
     overall_label = _prob_to_label(avg_prob)
+    if votes:
+        voted_label, vote_count = votes.most_common(1)[0]
+        if vote_count >= 2 or len(votes) == 1:
+            overall_label = voted_label
+
     confidence = abs(avg_prob - 0.5) * 2
 
+    neutral_weight = max(0.0, 1.0 - confidence)
+    active_weight = 1.0 - neutral_weight
+    positive_weight = max(0.0, avg_prob * active_weight)
+    negative_weight = max(0.0, (1.0 - avg_prob) * active_weight)
+    total_weight = positive_weight + negative_weight + neutral_weight
+
+    if total_weight > 0:
+        distribution = {
+            "positive": positive_weight / total_weight,
+            "neutral": neutral_weight / total_weight,
+            "negative": negative_weight / total_weight,
+        }
+    else:
+        distribution = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
+
     return {
-        "overall": {"label": overall_label, "confidence": confidence},
+        "overall": {"label": overall_label, "confidence": confidence, "probability": avg_prob},
         "rule_based": rule_info,
         "ml": ml_info,
         "dl": dl_info,
         "transformer": transformer_info,
+        "distribution": distribution,
     }
 
 
