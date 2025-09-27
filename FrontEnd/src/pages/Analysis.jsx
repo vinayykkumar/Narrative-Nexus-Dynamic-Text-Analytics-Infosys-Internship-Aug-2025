@@ -311,7 +311,7 @@ const Analysis = () => {
             <button
               type="button"
               onClick={resetState}
-              className="px-6 py-2 border border-white/30 text-gray-300 rounded-full hover:bg-white/10 transition"
+              className="px-6 py-2 border border-white/30 text-gray-300 cursor-pointer rounded-full hover:bg-white/10 transition"
             >
               Reset
             </button>
@@ -319,7 +319,7 @@ const Analysis = () => {
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />} {loading ? "Analyzing..." : "Analyze"}
             </button>
@@ -332,7 +332,7 @@ const Analysis = () => {
           <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 backdrop-blur rounded-xl py-10 px-6 space-y-5">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
             <div className="text-gray-300 text-center space-y-2">
-              <p className="font-medium">Analyzing data...</p>
+              <p className="font-medium">Analyzing text...</p>
               <ul className="list-disc list-inside text-left space-y-1 text-gray-400">
                 {STEPS.map((step, idx) => (
                   <li
@@ -485,7 +485,7 @@ const Analysis = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {analysis.extractive_summary && (
                       <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
-                        <h3 className="font-semibold text-indigo-500 text-lg mb-3">
+                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
                           Extractive Summary
                         </h3>
                         <p className="text-gray-200 text-sm whitespace-pre-line">
@@ -496,7 +496,7 @@ const Analysis = () => {
 
                     {analysis.abstractive_summary && (
                       <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
-                        <h3 className="font-semibold text-indigo-500 text-lg mb-3">
+                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
                           Abstractive Summary
                         </h3>
                         <p className="text-gray-200 text-sm whitespace-pre-line">
@@ -538,7 +538,7 @@ const Analysis = () => {
           )}
 
           {!analysis && !loading && (
-            <div className="p-6 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-400 flex items-center gap-3">
+            <div className="p-6 bg-white/10 border border-white/20 backdrop-blur rounded-xl text-sm text-gray-400 flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-primary" />
               <p>
                 Submit text or upload a document to reveal sentiment, topic insights, summaries, and tailored suggestions.

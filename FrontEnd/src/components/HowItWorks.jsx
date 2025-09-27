@@ -30,7 +30,7 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-24 pb-16">
+    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] bg-no-repeat bg-cover text-white pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-6 text-center">
         <h1 className="text-4xl md:text-5xl font-semibold text-primary">
           How It Works ?

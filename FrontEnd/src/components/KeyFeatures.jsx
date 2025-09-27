@@ -32,7 +32,7 @@ const features = [
     bg: { from: '#5C6AF1', to: '#427DF5' }
   },
   {
-    icon: FileSearch, // import from lucide-react
+    icon: FileSearch,
     title: "Entity Recognition",
     desc: "Identify and highlight people, organizations, places, and keywords for deeper context understanding.",
     bg: { from: '#FFB800', to: '#FF7A00' }
@@ -41,7 +41,7 @@ const features = [
 
 const KeyFeatures = () => {
   return (
-    <div className="px-4 py-20 sm:px-20 xl:px-32 bg-black bg-[url(/bg.svg)] min-h-screen" id="ai-features">
+    <div className="px-4 py-20 sm:px-20 xl:px-32 bg-black bg-[url(/bg.svg)] bg-no-repeat bg-cover min-h-screen" id="ai-features">
       <div className="text-center">
         <h2 className="text-primary text-3xl md:text-5xl
          font-bold mb-4">AI Features</h2>
@@ -56,7 +56,7 @@ const KeyFeatures = () => {
           return (
             <div
               key={index}
-              className="p-8 m-4 max-w-xs rounded-xl bg-black border border-white/20 shadow-lg text-primary hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              className="p-8 m-4 max-w-xs rounded-xl bg-black border border-white/20 shadow-lg text-primary hover:-translate-y-1 transition-all duration-300"
             >
               <div
                 className="w-12 h-12 flex items-center justify-center rounded-xl"
