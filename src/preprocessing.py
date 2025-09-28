@@ -5,20 +5,35 @@ from collections import Counter
 # Lightweight spaCy pipeline (disable heavy parts)
 _nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
 
-def clean_text(text: str, chunk_size: int = 50_000) -> str:
-    """
-    Lowercase, keep letters/spaces, lemmatize, drop stopwords.
-    Processes large text in chunks to avoid memory issues.
-    """
-    text = text.lower()
-    text = re.sub(r"[^a-z\s]", " ", text)
 
-    tokens = []
-    for i in range(0, len(text), chunk_size):
-        doc = _nlp(text[i:i + chunk_size])
-        tokens.extend([t.lemma_ for t in doc if t.is_alpha and not t.is_stop])
+def clean_text(text: str) -> str:
+    if not text:
+        return ""
+    text = str(text)
+    # remove URLs
+    text = re.sub(r'http\S+|www\.\S+', '', text)
+    # remove emails
+    text = re.sub(r'\S+@\S+', '', text)
+    # normalize newlines
+    text = re.sub(r'\s+', ' ', text)
+    # strip control chars
+    text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+    # trim
+    text = text.strip()
 
-    return " ".join(tokens)
+    def _filter_short_and_nonalpha(text_in: str) -> str:
+        # remove non-word characters, keep letters/digits/space, collapse spaces
+        text_in = re.sub(r'[^A-Za-z0-9\s]', ' ', text_in)
+        text_in = re.sub(r'\s+', ' ', text_in).strip()
+        # drop tokens with length <= 2
+        tokens = [t for t in text_in.split() if len(t) > 2]
+        return " ".join(tokens)
+
+    cleaned_text = _filter_short_and_nonalpha(text)
+    return cleaned_text
+
+
+    
 
 def summarize_text_stats(cleaned_text: str):
     words = cleaned_text.split()
