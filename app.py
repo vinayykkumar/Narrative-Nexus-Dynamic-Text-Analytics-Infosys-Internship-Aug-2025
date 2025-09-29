@@ -26,8 +26,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- MODERN MINIMAL NAVBAR (tabs, no icons, no option_menu) ----------
-import streamlit as st
+# ---------- MODERN MINIMAL NAVBAR  ----------
 
 # pages (labels only)
 PAGES = ["Home", "Data Input", "Preprocessing", "Topic Modeling", "Sentiment", "Summarization", "Dashboard", "About"]
@@ -101,7 +100,7 @@ with st.container():
 if selected != st.session_state.get("page"):
     st.session_state["page"] = selected
 
-# expose for your pages (you can keep using nav_to(...) as before)
+# expose for your pages
 NAV_TO = nav_to
 # ---------- END NAVBAR ----------
 
@@ -116,6 +115,7 @@ with st.expander("DEBUG session_state snapshot (temporary)", expanded=False):
 
 # ---------- Page implementations (lazy imports inside pages) ----------
 
+# --- Home Page ---
 def page_home():
     st.markdown("<div style='padding-top:40px; padding-bottom:10px;'>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align:center; color:#4CAF50; font-size:44px; margin:0;'>Turn Raw Text into Insights</h1>", unsafe_allow_html=True)
@@ -138,6 +138,8 @@ def page_home():
             st.markdown(f"### {title}")
             st.write(desc)
 
+
+# --- Data Input (CSV, DOCX or TXT) ---
 def page_data_input():
     st.title("📄 Step 1: Data Input")
     st.caption("Upload a file or paste text. We’ll validate and show an instant preview before preprocessing.")
@@ -205,6 +207,8 @@ def page_data_input():
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
+
+# --- Preprocessing ---
 def page_preprocessing():
     st.title("🧹 Step 2: Preprocessing")
     if "raw_text" not in st.session_state or not st.session_state["raw_text"]:
@@ -329,52 +333,86 @@ def page_topics():
         docs_for_eval = st.session_state.get("tm_docs", [])
     
         with st.expander("🛠️ Model diagnostics (coherence, perplexity, diversity, silhouette)", expanded=False):
-            if not docs_for_eval or feat_names is None:
+            if "tm_model" not in st.session_state:
                 st.info("Train a model first to enable diagnostics.")
             else:
-                total_docs = len(docs_for_eval)
-                SAMPLE_DOCS = st.slider("Docs to sample", 50, min(1000, total_docs), min(200, total_docs), 50, key="diag_sample_docs")
-                TOPN = st.slider("Top N words per topic (for coherence)", 5, 20, 10, key="diag_topn")
-                compute_sil = st.checkbox("Compute silhouette (slower)", value=False, key="diag_sil")
-    
-                sampled_docs = docs_for_eval[:SAMPLE_DOCS]
-    
-                @st.cache_data(show_spinner=False, ttl=3600)
-                def _coherence_cached(sampled, topn, feat_key):
-                    from src.topic_modeling import compute_coherence_score, top_terms_per_topic
-                    topics = top_terms_per_topic(model, feat_names, topn=topn)
-                    return compute_coherence_score(model, sampled, feat_names, topn=topn, coherence="c_v")
-    
-                try:
-                    coh_cv = _coherence_cached(sampled_docs, TOPN, "|".join(feat_names[:500]))
-                except Exception as e:
-                    coh_cv = None
-                    st.warning(f"Coherence failed: {e}")
-    
-                try:
-                    perp = compute_model_perplexity(model, X_vec)
-                except Exception:
-                    perp = None
-    
-                try:
-                    div = topic_diversity(model, feat_names, topn=TOPN)
-                except Exception:
-                    div = None
-    
-                sil = None
-                if compute_sil:
+                model_saved = st.session_state["tm_model"]
+                feat_names = st.session_state.get("tm_feature_names")
+                docs_for_eval = st.session_state.get("tm_docs", [])
+                X_vec = st.session_state.get("tm_X")
+
+                if not docs_for_eval or not feat_names:
+                    st.warning("Docs or feature names missing.")
+                else:
+                    total_docs = len(docs_for_eval)
+                    SAMPLE_DOCS = st.slider("Docs to sample", 50, min(1000, total_docs), min(200, total_docs), 50, key="diag_sample_docs")
+                    TOPN = st.slider("Top N words per topic (for coherence)", 5, 20, 10, key="diag_topn")
+                    compute_sil = st.checkbox("Compute silhouette (slower)", value=False, key="diag_sil")
+
+                    sampled_docs = docs_for_eval[:SAMPLE_DOCS]
+
+                    @st.cache_data(show_spinner=False, ttl=3600)
+                    def coherence_cv_cached(sd, topn, feat_key):
+                        from src.topic_modeling import compute_coherence_score
+                        return compute_coherence_score(model_saved, sd, feat_names, topn=topn, coherence="c_v")
+
+                    # ---- Run c_v (gensim) ----
                     try:
-                        from src.topic_modeling import topic_silhouette_score
-                        SIL_DOCS = min(300, SAMPLE_DOCS)
-                        sil = topic_silhouette_score(sampled_docs[:SIL_DOCS], model, X_vec[:SIL_DOCS] if hasattr(X_vec,'__getitem__') else X_vec, feat_names, topn_docs=SIL_DOCS)
+                        coh_cv = coherence_cv_cached(sampled_docs, TOPN, "|".join(feat_names[:500]))
                     except Exception as e:
-                        st.warning(f"Silhouette failed: {e}")
-    
-                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-                with kpi1: st.metric("Coherence (c_v)", f"{coh_cv:.4f}" if coh_cv is not None else "—")
-                with kpi2: st.metric("Perplexity (LDA)", f"{perp:.2f}" if perp is not None else "—")
-                with kpi3: st.metric("Topic diversity", f"{div:.3f}" if div is not None else "—")
-                with kpi4: st.metric("Silhouette", f"{sil:.4f}" if sil not in (None, float('nan')) else "—")
+                        coh_cv = None
+                        st.warning(f"c_v coherence failed: {e}")
+
+                    # ---- Optional: u_mass for comparison ----
+                    umass = None
+                    if st.button("Compute u_mass (compare)"):
+                        try:
+                            from src.topic_modeling import compute_coherence_score
+                            umass = compute_coherence_score(model_saved, sampled_docs, feat_names, topn=TOPN, coherence="u_mass")
+                        except Exception as e:
+                            st.warning(f"u_mass failed: {e}")
+
+                    # ---- Perplexity, Diversity, Silhouette ----
+                    try:
+                        from src.topic_modeling import compute_model_perplexity, topic_diversity
+                        perp = compute_model_perplexity(model_saved, X_vec)
+                        div  = topic_diversity(model_saved, feat_names, topn=TOPN)
+                    except Exception:
+                        perp, div = None, None
+
+                    sil = None
+                    if compute_sil:
+                        try:
+                            from src.topic_modeling import topic_silhouette_score
+                            SIL_DOCS = min(300, SAMPLE_DOCS)
+                            sil = topic_silhouette_score(sampled_docs[:SIL_DOCS], model_saved, X_vec[:SIL_DOCS] if hasattr(X_vec,'__getitem__') else X_vec, feat_names, topn_docs=SIL_DOCS)
+                        except Exception as e:
+                            st.warning(f"Silhouette failed: {e}")
+
+                    # KPIs
+                    k1, k2, k3, k4 = st.columns(4)
+                    with k1: st.metric("Coherence (c_v, 0–1 ↑)", f"{coh_cv:.4f}" if coh_cv is not None else "—")
+                    with k2: st.metric("Perplexity (↓)", f"{perp:.2f}" if perp is not None else "—")
+                    with k3: st.metric("Topic diversity (↑)", f"{div:.3f}" if div is not None else "—")
+                    with k4: st.metric("Silhouette (↑)", f"{sil:.4f}" if sil not in (None, float('nan')) else "—")
+
+                    if umass is not None:
+                        st.info(f"u_mass (more negative is better): **{umass:.3f}**")
+
+                    # Persist to session for Dashboard/Report
+                    if coh_cv is not None:
+                        st.session_state["_diag_coherence"] = float(coh_cv)
+                    if div is not None:
+                        st.session_state["_diag_diversity"] = float(div)
+
+                    # Optional: clear cache button
+                    if st.button("🧹 Clear cached coherence"):
+                        try:
+                            st.cache_data.clear()
+                            st.success("Cache cleared. Re-run diagnostics.")
+                        except Exception:
+                            pass
+
 
     # Diagnostics and show results (same logic as before)
     if "tm_model" in st.session_state:
@@ -405,6 +443,8 @@ def page_topics():
         if st.button("➡️ Next: Sentiment Analysis", key="btn_next_sentiment", use_container_width=True):
             nav_to("Sentiment")
 
+
+# --- Sentiments ---
 def page_sentiment():
     # lazy imports
     try:
@@ -557,7 +597,7 @@ def page_sentiment():
                 except Exception:
                     st.bar_chart(plot_df.pivot(index="topic", columns="sentiment", values="pct").fillna(0))
             else:
-                # weighted aggregation (omitted here to keep snippet compact - keep original logic)
+                
                 pass
         else:
             st.info("No trained topic model found in session. Train a topic model (Topic Modeling page) to see sentiment-by-topic breakdown.")
@@ -569,6 +609,8 @@ def page_sentiment():
         if st.button("➡️ Next: Summarization", key="btn_next_summarization", use_container_width=True):
             nav_to("Summarization")
 
+
+# --- Summarization ---
 def page_summarization():
     # lazy imports
     try:
@@ -832,12 +874,15 @@ def page_dashboard_router():
     except Exception:
         page_dashboard_local_fallback()
 
+
+# --- About Us ---
 def page_about():
     st.title("ℹ️ About")
     st.write("""
     **AI Text Analysis** helps you convert raw text and CSVs into actionable insights.
     Built with Streamlit, pandas, spaCy and scikit-learn.
     """)
+
 
 # ---------- Router ----------
 current = st.session_state.get("page", "Home")
@@ -857,6 +902,7 @@ elif current == "Dashboard":
     page_dashboard_router()
 elif current == "About":
     page_about()
+
 
 # ---------- Footer ----------
 st.markdown('<hr style="opacity:.08;"><p style="text-align:center; color:#9fb1bd;">© 2025 • AI Text Analysis</p>', unsafe_allow_html=True)
