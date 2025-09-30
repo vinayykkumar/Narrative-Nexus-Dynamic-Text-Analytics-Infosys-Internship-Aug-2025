@@ -5,7 +5,7 @@ import uvicorn
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 import io
 import csv
 from docx import Document
@@ -18,7 +18,8 @@ if str(ROOT_DIR) not in sys.path:
 from src.preprocessing import clean_text
 from src.sentiment import analyze_sentiment_text, load_sentiment_models, SentimentInferenceModels
 from src.summarization import extractive_summary, abstractive_summary
-from src.insights import load_models, get_topics_for_doc, generate_insights
+from src.insights import TopicModels, load_models, get_topics_for_doc, generate_insights
+from src.reporting import generate_report, report_to_markdown
 
 app = FastAPI(title="NarrativeNexus API")
 
@@ -31,32 +32,37 @@ app.add_middleware(
 )
 
 MODEL_DIR = ROOT_DIR / "models"
-tfidf = None
-nmf = None
+topic_models: Optional[TopicModels] = None
 sentiment_models: Optional[SentimentInferenceModels] = None
 
 class TextIn(BaseModel):
     text: str
+
+
+class ReportIn(BaseModel):
+    text: str
+    include_markdown: bool = False
+    include_analysis: bool = False
+    metadata: Optional[dict] = None
+    evaluation: Optional[dict] = None
 
 # -----------------------------
 # Startup: Load models
 # -----------------------------
 @app.on_event("startup")
 def load_all():
-    global tfidf, nmf, sentiment_models
+    global topic_models, sentiment_models
     if os.getenv("NARRATIVENEXUS_TEST_MODE") == "1":
-        tfidf = None
-        nmf = None
+        topic_models = None
         sentiment_models = None
         print("⚠️ Running in test mode – models not loaded.")
         return
 
     try:
-        tfidf, nmf = load_models(MODEL_DIR)
+        topic_models = load_models(MODEL_DIR)
         print("✅ Topic models loaded")
     except Exception as e:
-        tfidf = None
-        nmf = None
+        topic_models = None
         print("⚠️ Model load warning:", e)
     sentiment_models = load_sentiment_models(MODEL_DIR)
     print("✅ Sentiment models ready")
@@ -83,21 +89,64 @@ async def sentiment(payload: TextIn):
     return out
 
 @app.post("/topics")
-async def topics(payload: TextIn, n_topics: Optional[int] = 3):
+async def topics(payload: TextIn, n_topics: Optional[int] = 6):
     txt = payload.text
     cleaned = clean_text(txt)
-    if tfidf is None or nmf is None:
+    if topic_models is None:
         return {"error": "Topic models not loaded. Train and place models in ../models."}
-    t = get_topics_for_doc(cleaned, tfidf, nmf, n_top=n_topics)
-    return {"topics": t}
+    requested_topics = 6
+    if n_topics is not None:
+        try:
+            requested_topics = max(1, int(n_topics))
+        except (TypeError, ValueError):
+            requested_topics = 6
+
+    bundle = get_topics_for_doc(cleaned, topic_models, n_top=requested_topics)
+    return {
+        "topics": bundle.get("summary", []),
+        "primary_topic": bundle.get("primary"),
+        "topic_details": bundle.get("detailed", []),
+        "total_topics": len(bundle.get("detailed", [])) if isinstance(bundle, dict) else 0,
+        "model_topics": bundle.get("model_topics", {}),
+    }
 
 @app.post("/analyze")
 async def analyze(payload: TextIn):
     txt = payload.text
     cleaned = clean_text(txt)
     sent = analyze_sentiment_text(cleaned, sentiment_models)
-    insights = generate_insights(txt, sent, tfidf, nmf)
+    insights = generate_insights(
+        txt,
+        sent,
+        topic_models=topic_models,
+        sentiment_models=sentiment_models,
+    )
     return insights
+
+
+@app.post("/report")
+async def report(payload: ReportIn):
+    txt = payload.text
+    cleaned = clean_text(txt)
+    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    insights = generate_insights(
+        txt,
+        sent,
+        topic_models=topic_models,
+        sentiment_models=sentiment_models,
+    )
+    report_payload = generate_report(
+        txt,
+        insights,
+        metadata=payload.metadata,
+        evaluation=payload.evaluation,
+    )
+    response: Dict[str, Any] = {"report": report_payload}
+    if payload.include_markdown:
+        response["markdown"] = report_to_markdown(report_payload)
+    if payload.include_analysis:
+        response["analysis"] = insights
+    return response
 
 # -----------------------------
 # File Upload Endpoint
@@ -139,7 +188,12 @@ async def analyze_file(file: UploadFile = File(...)):
 
         cleaned = clean_text(text)
         sent = analyze_sentiment_text(cleaned, sentiment_models)
-        insights = generate_insights(text, sent, tfidf, nmf)
+        insights = generate_insights(
+            text,
+            sent,
+            topic_models=topic_models,
+            sentiment_models=sentiment_models,
+        )
         return insights
 
     except Exception as e:

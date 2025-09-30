@@ -10,6 +10,11 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
+import SentimentDistribution from "../components/charts/SentimentDistribution";
+import TopicDistribution from "../components/charts/TopicDistribution";
+import KeywordWordCloud from "../components/charts/KeywordWordCloud";
+import TopicHighlights from "../components/charts/TopicHighlights";
+import TopicConfidenceRadar from "../components/charts/TopicConfidenceRadar";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const STEPS = [
@@ -50,6 +55,9 @@ const Analysis = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState("");
   const resultRef = useRef(null);
+  const [selectedSentimentKey, setSelectedSentimentKey] = useState(null);
+  const [selectedTopicKey, setSelectedTopicKey] = useState(null);
+  const [selectedKeyword, setSelectedKeyword] = useState(null);
 
   const {
     setAnalysisData = () => {},
@@ -84,6 +92,9 @@ const Analysis = () => {
     setAnalysis(null);
     setError("");
     setCurrentStep(0);
+    setSelectedSentimentKey(null);
+    setSelectedTopicKey(null);
+    setSelectedKeyword(null);
   };
 
   const validateFile = (selectedFile) => {
@@ -129,6 +140,9 @@ const Analysis = () => {
     setAnalysis(null);
     setError("");
     setCurrentStep(0);
+  setSelectedSentimentKey(null);
+  setSelectedTopicKey(null);
+  setSelectedKeyword(null);
 
     const scrollTimeout = setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -162,16 +176,35 @@ const Analysis = () => {
         return;
       }
 
+      const computeTopicKey = (topic, index = 0) => {
+        if (!topic) return null;
+        if (topic.category_key) return topic.category_key;
+        if (typeof topic.original_topic_id !== "undefined" && topic.original_topic_id !== null) {
+          return `topic-${topic.original_topic_id}`;
+        }
+        return `topic-${index}`;
+      };
+
       setAnalysis(result);
       setAnalysisData({
         extractiveSummary: result.extractive_summary ?? "",
         abstractiveSummary: result.abstractive_summary ?? "",
         topics: result.topics ?? [],
+        topicDetails: result.topic_details ?? [],
+        primaryTopic: result.primary_topic ?? null,
         keywordCloud: result.keyword_cloud ?? [],
         suggestions: result.suggestions ?? [],
       });
       setSentimentData(result.sentiment ?? null);
       setInsights(result.suggestions ?? []);
+      setSelectedSentimentKey(result.sentiment?.overall?.label ?? null);
+      const defaultTopicKey =
+        computeTopicKey(result.primary_topic, 0) ??
+        (Array.isArray(result.topics) ? computeTopicKey(result.topics[0], 0) : null);
+      setSelectedTopicKey(defaultTopicKey);
+      const firstKeyword =
+        result.keyword_cloud_weighted?.[0]?.term ?? result.keyword_cloud?.[0] ?? null;
+      setSelectedKeyword(firstKeyword);
     } catch (err) {
       console.error("Analysis error", err);
       setError("Something went wrong while analyzing the data. Please try again.");
@@ -238,6 +271,33 @@ const Analysis = () => {
     overallConfidence != null ? formatPercentage(overallConfidence) : "--";
 
   const topics = Array.isArray(analysis?.topics) ? analysis.topics : [];
+  const primaryTopic =
+    analysis?.primary_topic ?? (topics.length > 0 ? topics[0] : null);
+  const primaryTopicKey = primaryTopic
+    ? `${primaryTopic.category_key ?? ""}:${primaryTopic.label ?? ""}`
+    : null;
+  const secondaryTopics = primaryTopicKey
+    ? topics.filter((topic, index) => {
+        const topicKey = `${topic?.category_key ?? ""}:${topic?.label ?? ""}`;
+        if (analysis?.primary_topic) {
+          return topicKey !== primaryTopicKey;
+        }
+        return index !== 0;
+      })
+    : topics;
+  const combinedTopics = [primaryTopic, ...secondaryTopics].filter(Boolean);
+  const visualTopics = combinedTopics.map((topic, index) => ({
+    ...topic,
+    __id:
+      topic?.category_key ??
+      `topic-${typeof topic?.original_topic_id !== "undefined" && topic?.original_topic_id !== null ? topic.original_topic_id : index}`,
+  }));
+  const keywordCloudWeighted = Array.isArray(analysis?.keyword_cloud_weighted)
+    ? analysis.keyword_cloud_weighted
+    : Array.isArray(analysis?.keyword_cloud)
+    ? analysis.keyword_cloud.map((term, idx) => ({ term, score: 1 - idx * 0.05 }))
+    : [];
+  const selectedTopicDetails = visualTopics.find((topic) => topic.__id === selectedTopicKey);
 
   return (
     <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-24">
@@ -374,13 +434,40 @@ const Analysis = () => {
                   {sentimentCards.map((card) => (
                     <div
                       key={card.key}
-                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur ${card.className}`}
+                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur transition ring-0 ${
+                        card.className
+                      } ${
+                        selectedSentimentKey === card.key
+                          ? "ring-2 ring-offset-2 ring-offset-black/40 ring-primary/70"
+                          : "hover:ring-1 hover:ring-primary/40"
+                      }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedSentimentKey(card.key)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedSentimentKey(card.key);
+                        }
+                      }}
                     >
                       <p className="text-xs uppercase tracking-wide text-white/70">{card.label}</p>
                       <p className="text-3xl font-semibold mt-2 text-white">{card.value}</p>
                       <p className="text-xs mt-3 text-white/70 leading-snug">{card.description}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className="bg-slate-900/50 border border-white/10 rounded-xl p-5">
+                  <h4 className="text-sm uppercase tracking-wide text-white/60 text-center mb-4">
+                    Sentiment Distribution
+                  </h4>
+                  <SentimentDistribution
+                    distribution={sentimentDistribution}
+                    overallLabel={overallLabel}
+                    selectedKey={selectedSentimentKey}
+                    onSegmentSelect={setSelectedSentimentKey}
+                  />
                 </div>
 
                 <div className="bg-black/40 border border-white/10 rounded-xl p-5 text-center">
@@ -426,52 +513,98 @@ const Analysis = () => {
                   <h3 className="font-semibold text-primary text-lg">Topics</h3>
                 </div>
 
-                {topics.length > 0 && (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {topics.map((topic, index) => {
-                        const label = topic?.label || `Topic ${index + 1}`;
-                        const relevanceBase = Number(
-                          topic?.share ?? topic?.confidence ?? topic?.score ?? 0
-                        );
-                        const normalizedRelevance = Number.isFinite(relevanceBase)
-                          ? Math.max(relevanceBase, 0)
-                          : 0;
-                        const relevancePercent = `${(normalizedRelevance * 100).toFixed(1)}%`;
-                        const description =
-                          topic?.description ||
-                          (Array.isArray(topic?.keywords) && topic.keywords.length > 0
-                            ? `Key signals: ${topic.keywords.slice(0, 6).join(", ")}`
-                            : "This theme was identified as a significant pattern in the text.");
-
-                        return (
-                          <div
-                            key={`${label}-${index}`}
-                            className="p-4 rounded-lg bg-gradient-to-tr from-blue-300/20 via-indigo-400/10 to-white/10 text-white shadow transition"
-                          >
-                            <div className="text-xl font-bold mb-2 text-center">{label}</div>
-                            <div className="text-lg font-semibold text-center mb-2">
-                              {relevancePercent} relevance
+                {primaryTopic || topics.length > 0 ? (
+                  <div className="space-y-6">
+                    {primaryTopic && (
+                      <div className="p-4 rounded-lg bg-gradient-to-tr from-indigo-500/20 via-blue-400/20 to-purple-500/10 border border-white/20 text-white">
+                        <div className="text-xs uppercase tracking-[0.2em] text-white/70 mb-2">
+                          Primary Topic
+                        </div>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <div className="text-2xl font-bold">
+                              {primaryTopic?.label ?? "Key Theme"}
                             </div>
-                            <div className="text-sm text-center text-white/80">{description}</div>
+                            <p className="text-sm text-white/80 mt-2 max-w-2xl">
+                              {Array.isArray(primaryTopic?.keywords) && primaryTopic.keywords.length > 0
+                                ? `Key signals: ${primaryTopic.keywords.slice(0, 8).join(", ")}`
+                                : "This theme captures the dominant narrative discovered within the text."}
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="text-center md:text-right">
+                            <div className="text-lg font-semibold text-primary">
+                              {formatPercentage(
+                                Number.isFinite(primaryTopic?.share)
+                                  ? Math.min(Math.max(primaryTopic.share, 0), 1)
+                                  : Math.min(Math.max(Number(primaryTopic?.confidence ?? 0), 0), 1)
+                              )}
+                            </div>
+                            <p className="text-xs text-white/70">Estimated relevance</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                    <div className="mt-6 p-4 rounded-lg bg-gradient-to-bl from-blue-300/20 via-indigo-400/10 to-white/10 text-white text-center">
-                      <div className="text-2xl font-bold mb-2">Overall Key Themes</div>
-                      <div className="text-4xl font-extrabold mb-2">📌</div>
-                      <div className="text-lg mb-2">
-                        {topics
-                          .map((topic, index) => topic?.label || `Topic ${index + 1}`)
-                          .join(", ")}
+                    {secondaryTopics.length > 0 && (
+                      <div className="space-y-6">
+                        <div className="flex flex-col gap-5 xl:flex-row">
+                          <div className="xl:w-7/12 w-full space-y-5">
+                            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm uppercase tracking-wide text-white/70">
+                                  Theme Distribution
+                                </h4>
+                                <span className="text-xs text-white/50">
+                                  {secondaryTopics.length} theme{secondaryTopics.length === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <TopicDistribution
+                                topics={visualTopics}
+                                selectedTopicKey={selectedTopicKey}
+                                onTopicSelect={(key) => {
+                                  setSelectedTopicKey((prev) => (prev === key ? null : key));
+                                  const match = visualTopics.find((topic) => topic.__id === key);
+                                  if (match?.keywords && match.keywords.length > 0) {
+                                    setSelectedKeyword(match.keywords[0]);
+                                  } else {
+                                    setSelectedKeyword(null);
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            <TopicConfidenceRadar topics={visualTopics} />
+                          </div>
+
+                          <div className="xl:w-5/12 w-full space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm uppercase tracking-wide text-white/70">
+                                Spotlight Themes
+                              </h4>
+                              <span className="text-xs text-white/50">Tap to drill in</span>
+                            </div>
+                            <TopicHighlights
+                              topics={visualTopics}
+                              selectedTopicKey={selectedTopicKey}
+                              onTopicSelect={(key) => {
+                                setSelectedTopicKey((prev) => (prev === key ? null : key));
+                                const match = visualTopics.find((topic) => topic.__id === key);
+                                if (match?.keywords && match.keywords.length > 0) {
+                                  setSelectedKeyword(match.keywords[0]);
+                                } else {
+                                  setSelectedKeyword(null);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-white/80">
-                        These are the most dominant themes detected from the input text.
-                      </div>
-                    </div>
-                  </>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-white/70 text-sm">
+                    No dominant topics were detected. Try analyzing a longer passage for richer insights.
+                  </p>
                 )}
               </div>
 
@@ -508,19 +641,23 @@ const Analysis = () => {
                 </div>
               )}
 
-              {analysis.keyword_cloud && analysis.keyword_cloud.length > 0 && (
-                <div className="p-5 bg-white/10 rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3">Keyword Cloud</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.keyword_cloud.slice(0, 20).map((word, idx) => (
-                      <span
-                        key={`${word}-${idx}`}
-                        className="bg-indigo-100/90 text-indigo-700 px-3 py-1 rounded-full text-xs"
-                      >
-                        {word}
+              {keywordCloudWeighted.length > 0 && (
+                <div className="p-5 bg-white/10 rounded-xl border border-white/20 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-primary text-lg">Keyword Cloud</h3>
+                    {selectedTopicDetails?.label && (
+                      <span className="text-xs text-white/70">
+                        Highlighting signals for {selectedTopicDetails.label}
                       </span>
-                    ))}
+                    )}
                   </div>
+                  <KeywordWordCloud
+                    keywords={keywordCloudWeighted}
+                    selectedKeyword={selectedKeyword}
+                    onKeywordSelect={(term) =>
+                      setSelectedKeyword((prev) => (prev === term ? null : term))
+                    }
+                  />
                 </div>
               )}
 

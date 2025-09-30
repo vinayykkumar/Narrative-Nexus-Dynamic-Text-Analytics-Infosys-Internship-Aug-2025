@@ -47,7 +47,11 @@ def main() -> None:
     print(f"Saved preprocessed dataset -> {merged_display}")
 
     print("📊 Training topic models (LDA & NMF)...")
-    topic_artifacts = train_topic_models(processed_df["clean_text"].astype(str).tolist(), n_topics=5, model_dir=MODEL_DIR)
+    topic_artifacts = train_topic_models(
+        processed_df["clean_text"].astype(str).tolist(),
+        n_topics=6,
+        model_dir=MODEL_DIR,
+    )
     print(f"LDA Perplexity: {topic_artifacts.lda_perplexity:.4f}")
     print(f"LDA Coherence: {topic_artifacts.lda_coherence:.4f}")
     print(f"NMF Coherence: {topic_artifacts.nmf_coherence:.4f}")

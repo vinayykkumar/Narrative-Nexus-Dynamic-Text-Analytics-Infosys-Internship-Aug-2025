@@ -44,7 +44,7 @@ def _compute_nmf_coherence(nmf: NMF, tfidf_vectorizer: TfidfVectorizer, tokenize
 
 def train_topic_models(
     clean_texts: List[str],
-    n_topics: int = 5,
+    n_topics: int = 6,
     random_state: int = 42,
     model_dir: Path | str = Path("models"),
 ) -> TopicModelArtifacts:
@@ -60,7 +60,13 @@ def train_topic_models(
     count_vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words="english")
     count_matrix = count_vectorizer.fit_transform(clean_texts)
 
-    lda = LatentDirichletAllocation(n_components=n_topics, random_state=random_state)
+    lda = LatentDirichletAllocation(
+        n_components=n_topics,
+        random_state=random_state,
+        learning_method="batch",
+        max_iter=40,
+        learning_decay=0.7,
+    )
     lda.fit(count_matrix)
     lda_perplexity = float(lda.perplexity(count_matrix))
 

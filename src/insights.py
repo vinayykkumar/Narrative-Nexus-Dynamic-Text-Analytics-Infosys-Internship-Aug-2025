@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
+
+import re
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import LatentDirichletAllocation, NMF
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from src.summarization import extractive_summary, abstractive_summary
 from src.preprocessing import clean_text
@@ -20,61 +24,15 @@ from src.sentiment import MAX_LEN as SENTIMENT_MAX_LEN
 MODEL_DIR = Path(__file__).resolve().parents[1] / "models"
 
 
+@dataclass(frozen=True)
+class TopicModels:
+    tfidf: TfidfVectorizer
+    nmf: NMF
+    lda: Optional[LatentDirichletAllocation]
+    count_vectorizer: Optional[CountVectorizer]
+
+
 CATEGORY_KEYWORDS: Dict[str, set[str]] = {
-    "political": {
-        "government",
-        "policy",
-        "election",
-        "minister",
-        "president",
-        "parliament",
-        "congress",
-        "senate",
-        "campaign",
-        "vote",
-        "diplomacy",
-        "legislation",
-        "referendum",
-        "council",
-        "constitution",
-        "manifesto",
-    },
-    "world": {
-        "conflict",
-        "war",
-        "geopolitics",
-        "international",
-        "global",
-        "treaty",
-        "crisis",
-        "embassy",
-        "border",
-        "alliance",
-        "sanction",
-        "summit",
-    },
-    "science": {
-        "science",
-        "research",
-        "study",
-        "scientist",
-        "experiment",
-        "laboratory",
-        "biology",
-        "physics",
-        "chemistry",
-        "genetics",
-        "space",
-        "nasa",
-        "astronomy",
-        "climate",
-        "ecosystem",
-        "innovation",
-        "discovery",
-        "medicine",
-        "health",
-        "biotech",
-    },
     "technology": {
         "technology",
         "tech",
@@ -95,31 +53,76 @@ CATEGORY_KEYWORDS: Dict[str, set[str]] = {
         "silicon",
         "innovation",
     },
-    "sport": {
-        "sport",
-        "match",
-        "game",
-        "league",
-        "player",
-        "team",
-        "coach",
-        "goal",
-        "score",
-        "win",
-        "victory",
-        "season",
-        "tournament",
-        "cup",
-        "championship",
-        "athlete",
-        "olympic",
-        "cricket",
-        "football",
-        "soccer",
-        "basketball",
-        "tennis",
-        "golf",
-        "baseball",
+    "education": {
+        "education",
+        "school",
+        "teacher",
+        "student",
+        "university",
+        "college",
+        "curriculum",
+        "classroom",
+        "learning",
+        "study",
+        "exam",
+        "assessment",
+        "lecture",
+        "academy",
+        "scholar",
+        "training",
+    },
+    "environment": {
+        "environment",
+        "climate",
+        "forest",
+        "wildlife",
+        "sustainability",
+        "ecosystem",
+        "biodiversity",
+        "pollution",
+        "carbon",
+        "emission",
+        "recycle",
+        "conservation",
+        "renewable",
+        "green",
+        "habitat",
+    },
+    "health": {
+        "health",
+        "medical",
+        "medicine",
+        "doctor",
+        "nurse",
+        "hospital",
+        "wellness",
+        "fitness",
+        "therapy",
+        "disease",
+        "infection",
+        "prevention",
+        "exercise",
+        "nutrition",
+        "mental",
+        "care",
+    },
+    "politics": {
+        "government",
+        "policy",
+        "election",
+        "minister",
+        "president",
+        "parliament",
+        "congress",
+        "senate",
+        "campaign",
+        "vote",
+        "diplomacy",
+        "legislation",
+        "referendum",
+        "council",
+        "constitution",
+        "manifesto",
     },
     "business": {
         "market",
@@ -164,34 +167,134 @@ CATEGORY_KEYWORDS: Dict[str, set[str]] = {
         "bollywood",
         "entertainment",
         "theatre",
+        "season",
+        "netflix",
+        "hulu",
+        "disney",
+        "prime",
+        "stream",
+        "streaming",
+        "tv",
+        "television",
+        "premiere",
+        "trailer",
+        "cast",
+        "director",
+        "anime",
+        "binge",
+        "binging",
+    },
+    "sports": {
+        "sport",
+        "sports",
+        "match",
+        "game",
+        "league",
+        "player",
+        "team",
+        "coach",
+        "goal",
+        "score",
+        "win",
+        "victory",
+        "tournament",
+        "cup",
+        "championship",
+        "athlete",
+        "olympic",
+        "cricket",
+        "football",
+        "soccer",
+        "basketball",
+        "tennis",
+        "golf",
+        "baseball",
+    },
+    "science": {
+        "science",
+        "research",
+        "study",
+        "scientist",
+        "experiment",
+        "laboratory",
+        "biology",
+        "physics",
+        "chemistry",
+        "genetics",
+        "space",
+        "astronomy",
+        "innovation",
+        "discovery",
+    },
+    "world": {
+        "conflict",
+        "war",
+        "geopolitics",
+        "international",
+        "global",
+        "treaty",
+        "crisis",
+        "embassy",
+        "border",
+        "alliance",
+        "sanction",
+        "summit",
     },
 }
 
 CATEGORY_GROUP_MAPPING: Dict[str, str] = {
-    "political": "political",
-    "world": "political",
+    "politics": "politics",
+    "technology": "technology",
+    "education": "education",
+    "environment": "environment",
+    "health": "health",
+    "sports": "sports",
+    "business": "business",
+    "entertainment": "entertainment",
     "science": "science",
-    "technology": "science",
-    "sport": "sport",
-    "business": "other",
-    "entertainment": "other",
+    "world": "world",
 }
 
 CATEGORY_DISPLAY: Dict[str, str] = {
-    "political": "Political",
+    "politics": "Politics",
+    "technology": "Technology",
+    "education": "Education",
+    "environment": "Environment",
+    "health": "Health",
+    "sports": "Sports",
+    "business": "Business",
+    "entertainment": "Entertainment",
     "science": "Science",
-    "sport": "Sport",
+    "world": "World",
     "other": "Other",
 }
 
 
-def load_models(model_dir: Path | str = MODEL_DIR):
-    """Load the TF-IDF vectorizer and NMF topic model."""
+def load_models(model_dir: Path | str = MODEL_DIR) -> TopicModels:
+    """Load persisted topic models (TF-IDF/NMF/LDA) from disk."""
 
     model_path = Path(model_dir)
     tfidf = joblib.load(model_path / "tfidf_vectorizer.pkl")
     nmf = joblib.load(model_path / "nmf_model.pkl")
-    return tfidf, nmf
+
+    lda_path = model_path / "lda_model.pkl"
+    cv_path = model_path / "count_vectorizer.pkl"
+
+    lda = joblib.load(lda_path) if lda_path.exists() else None
+    count_vectorizer = joblib.load(cv_path) if cv_path.exists() else None
+
+    return TopicModels(tfidf=tfidf, nmf=nmf, lda=lda, count_vectorizer=count_vectorizer)
+
+
+def _coerce_topic_models(models: Any, nmf: Optional[Any] = None) -> TopicModels:
+    if isinstance(models, TopicModels):
+        return models
+    if isinstance(models, tuple) and len(models) >= 2:
+        tfidf, nmf_model = models[0], models[1]
+        return TopicModels(tfidf=tfidf, nmf=nmf_model, lda=None, count_vectorizer=None)
+    if nmf is not None:
+        return TopicModels(tfidf=models, nmf=nmf, lda=None, count_vectorizer=None)
+    raise ValueError("Topic models must be provided as TopicModels or (tfidf, nmf) tuple.")
 
 
 def _feature_names(tfidf) -> Optional[np.ndarray]:
@@ -287,29 +390,30 @@ def _ensure_sentiment_models(
 
 def _fallback_sentiment_result(text: str) -> Dict[str, Any]:
     rule = rule_based_sentiment(text)
-    prob = float(rule["probability"])
-    confidence = abs(prob - 0.5) * 2
-    neutral_weight = max(0.0, 1.0 - confidence)
-    active_weight = 1.0 - neutral_weight
-    positive_weight = max(0.0, prob * active_weight)
-    negative_weight = max(0.0, (1.0 - prob) * active_weight)
-    total = positive_weight + negative_weight + neutral_weight
-    if total > 0:
-        distribution = {
-            "positive": positive_weight / total,
-            "neutral": neutral_weight / total,
-            "negative": negative_weight / total,
-        }
-    else:
-        distribution = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
+    distribution = rule.get("distribution") or {
+        "positive": max(0.0, min(1.0, 0.5 + rule.get("score", 0.0) / 2.0)),
+        "negative": max(0.0, min(1.0, 0.5 - rule.get("score", 0.0) / 2.0)),
+        "neutral": 0.0,
+    }
+    total = sum(distribution.values()) or 1.0
+    normalised = {key: float(value) / total for key, value in distribution.items()}
+    dominant_label = str(rule.get("label", "neutral")).lower()
+    probability = normalised.get(dominant_label, max(normalised.values(), default=0.33))
+    confidence = probability
 
     return {
-        "overall": {"label": rule["label"], "confidence": confidence, "probability": prob},
+        "overall": {
+            "label": dominant_label,
+            "confidence": confidence,
+            "probability": probability,
+            "score": rule.get("score", 0.0),
+        },
         "rule_based": rule,
         "ml": None,
         "dl": None,
         "transformer": None,
-        "distribution": distribution,
+        "distribution": normalised,
+        "models": {"rule_based": rule},
     }
 
 
@@ -419,6 +523,11 @@ def build_topic_insights(integrated_df: pd.DataFrame) -> pd.DataFrame:
         )
         representative_excerpt = " || ".join(representative_rows)
 
+        sentiment_counts = Counter(str(label).lower() for label in group.get("sentiment_label", []) if label)
+        dominant_sentiment = "neutral"
+        if sentiment_counts:
+            dominant_sentiment = sentiment_counts.most_common(1)[0][0]
+
         group_records.append(
             {
                 "category_key": category,
@@ -431,6 +540,8 @@ def build_topic_insights(integrated_df: pd.DataFrame) -> pd.DataFrame:
                 "top_keywords": top_keywords,
                 "matched_terms": top_matched_terms,
                 "representative_examples": representative_excerpt,
+                "dominant_sentiment": dominant_sentiment.capitalize(),
+                "sample_excerpt": representative_rows[0] if representative_rows else "",
             }
         )
 
@@ -441,28 +552,66 @@ def build_topic_insights(integrated_df: pd.DataFrame) -> pd.DataFrame:
     return insights_df
 
 
-def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, Any]]:
+def get_topics_for_doc(text: str, models: Any, nmf: Optional[Any] = None, n_top: int = 6) -> Dict[str, Any]:
+    topic_models = _coerce_topic_models(models, nmf)
+    tfidf = topic_models.tfidf
+    nmf_model = topic_models.nmf
+    lda_model = topic_models.lda
+    count_vectorizer = topic_models.count_vectorizer
+
     vec = tfidf.transform([text])
-    topic_dist = nmf.transform(vec)[0]
+    topic_dist = nmf_model.transform(vec)[0]
+    if topic_dist.ndim != 1:
+        topic_dist = topic_dist.flatten()
+
+    n_top = max(1, min(n_top, len(topic_dist)))
     top_idx = np.argsort(topic_dist)[::-1][:n_top]
+    top_activations = float(np.sum(topic_dist[top_idx])) or 1.0
 
     feature_names = _feature_names(tfidf)
     keywords: List[List[str]] = []
     if feature_names is not None:
         for topic_id in top_idx:
-            comps = nmf.components_[topic_id]
-            terms = [feature_names[j] for j in comps.argsort()[-5:][::-1]]
+            comps = nmf_model.components_[topic_id]
+            terms = [feature_names[j] for j in comps.argsort()[-8:][::-1]]
             keywords.append(terms)
 
-    topics: List[Dict[str, Any]] = []
+    nmf_topics: List[Dict[str, Any]] = []
     for rank, topic_id in enumerate(top_idx):
-        item: Dict[str, Any] = {"topic_id": int(topic_id), "score": float(topic_dist[topic_id])}
+        activation = float(topic_dist[topic_id])
+        share = activation / top_activations if top_activations > 0 else 0.0
+        item: Dict[str, Any] = {
+            "topic_id": int(topic_id),
+            "rank": rank + 1,
+            "score": activation,
+            "share": share,
+            "source": "nmf",
+        }
         if keywords:
             item["keywords"] = keywords[rank]
-        topics.append(item)
+        nmf_topics.append(item)
+
+    lda_topics: List[Dict[str, Any]] = []
+    if lda_model is not None and count_vectorizer is not None:
+        lda_vec = count_vectorizer.transform([text])
+        lda_dist = lda_model.transform(lda_vec)[0]
+        if lda_dist.ndim != 1:
+            lda_dist = lda_dist.flatten()
+        lda_top_idx = np.argsort(lda_dist)[::-1][:n_top]
+        for rank, topic_id in enumerate(lda_top_idx):
+            score = float(lda_dist[topic_id])
+            lda_item: Dict[str, Any] = {
+                "topic_id": int(topic_id),
+                "rank": rank + 1,
+                "score": score,
+                "share": score,
+                "source": "lda",
+                "keywords": _top_words_for_topic(lda_model, count_vectorizer, int(topic_id), top_n=8),
+            }
+            lda_topics.append(lda_item)
 
     enriched_topics: List[Dict[str, Any]] = []
-    for topic in topics:
+    for topic in nmf_topics + lda_topics:
         candidate_keywords = topic.get("keywords", [])
         classifier_input = " ".join(candidate_keywords) if candidate_keywords else text
         classification = _classify_high_level_topic(classifier_input, candidate_keywords)
@@ -474,7 +623,10 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, 
                 "keywords": candidate_keywords,
                 "matched_terms": classification["matched_terms"],
                 "score": topic.get("score", 0.0),
+                "share": round(float(topic.get("share", 0.0)), 4),
                 "original_topic_id": topic.get("topic_id"),
+                "rank": topic.get("rank"),
+                "source": topic.get("source", "nmf"),
             }
         )
 
@@ -497,7 +649,11 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, 
         if key not in aggregated:
             key = "other"
         bucket = aggregated[key]
-        bucket["raw_score"] += max(float(topic.get("score", 0.0)), 0.0)
+        contribution = max(float(topic.get("score", 0.0)), 0.0)
+        source = topic.get("source", "nmf")
+        if source == "lda":
+            contribution *= 0.85
+        bucket["raw_score"] += contribution
         bucket["confidence"] = max(bucket["confidence"], float(topic.get("confidence", 0.0)))
         bucket["keywords"].update(topic.get("keywords", []))
         bucket["matched_terms"].update(topic.get("matched_terms", []))
@@ -517,13 +673,13 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, 
         _ingest(baseline_topic)
 
     total_score = sum(bucket["raw_score"] for bucket in aggregated.values())
-    results: List[Dict[str, Any]] = []
+    summary_results: List[Dict[str, Any]] = []
 
     for key, bucket in aggregated.items():
         if bucket["raw_score"] <= 0 and not bucket["matched_terms"]:
             continue
         share = bucket["raw_score"] / total_score if total_score > 0 else 0.0
-        results.append(
+        summary_results.append(
             {
                 "label": bucket["label"],
                 "category_key": key,
@@ -536,8 +692,8 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, 
             }
         )
 
-    if not results:
-        results.append(
+    if not summary_results:
+        summary_results.append(
             {
                 "label": CATEGORY_DISPLAY[base_classification.get("key", "other")],
                 "category_key": base_classification.get("key", "other"),
@@ -550,8 +706,83 @@ def get_topics_for_doc(text: str, tfidf, nmf, n_top: int = 3) -> List[Dict[str, 
             }
         )
 
-    results.sort(key=lambda item: (item["score"], item["confidence"]), reverse=True)
-    return results
+    summary_results.sort(key=lambda item: (item["score"], item["confidence"]), reverse=True)
+
+    bundle: Dict[str, Any] = {
+        "summary": summary_results,
+        "primary": summary_results[0] if summary_results else None,
+        "detailed": enriched_topics,
+        "model_topics": {
+            "nmf": nmf_topics,
+            "lda": lda_topics,
+        },
+    }
+
+    return bundle
+
+
+_SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!?])\s+")
+
+
+def _split_sentences(text: str) -> List[str]:
+    if not text:
+        return []
+    sentences = [segment.strip() for segment in _SENTENCE_SPLIT_PATTERN.split(text) if segment.strip()]
+    if not sentences:
+        sentences = [text.strip()]
+    return sentences
+
+
+def _select_snippet(sentences: Sequence[str], keywords: Sequence[str]) -> str:
+    lowered_keywords = [kw.lower() for kw in keywords if kw]
+    if not sentences:
+        return ""
+    if not lowered_keywords:
+        return sentences[0]
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+        if any(keyword in sentence_lower for keyword in lowered_keywords):
+            return sentence
+    return sentences[0]
+
+
+def _topic_narratives(
+    text: str,
+    topics: Sequence[Dict[str, Any]],
+    sentiment_models: Optional[SentimentInferenceModels],
+) -> List[Dict[str, Any]]:
+    sentences = _split_sentences(text)
+    narratives: List[Dict[str, Any]] = []
+    for index, topic in enumerate(topics, start=1):
+        keywords = topic.get("matched_terms") or topic.get("keywords") or []
+        snippet = _select_snippet(sentences, keywords)
+        if sentiment_models is not None and snippet:
+            snippet_sentiment = analyze_sentiment_text(snippet, sentiment_models)
+        elif snippet:
+            snippet_sentiment = _fallback_sentiment_result(snippet)
+        else:
+            snippet_sentiment = {
+                "overall": {"label": "neutral", "confidence": 0.25, "probability": 0.5}
+            }
+
+        overall = snippet_sentiment.get("overall", {})
+        sentiment_label = str(overall.get("label", "neutral")).capitalize()
+        narratives.append(
+            {
+                "index": index,
+                "title": topic.get("label", f"Topic {index}"),
+                "headline": f"{topic.get('label', f'Topic {index}')} ({sentiment_label})",
+                "sentiment_label": sentiment_label,
+                "sentiment_details": snippet_sentiment,
+                "snippet": snippet,
+                "keywords": topic.get("keywords", []),
+                "matched_terms": topic.get("matched_terms", []),
+                "category_key": topic.get("category_key"),
+                "score": topic.get("score"),
+            }
+        )
+
+    return narratives
 
 
 def _extract_keywords(text: str, top_k: int = 15) -> List[Dict[str, Any]]:
@@ -599,38 +830,61 @@ def _normalise_sentiment(sentiment_result: Dict[str, Any]) -> Dict[str, Any]:
     return sentiment
 
 
-def generate_insights(text: str, sentiment_result: Dict[str, Any], tfidf=None, nmf=None) -> Dict[str, Any]:
+def generate_insights(
+    text: str,
+    sentiment_result: Dict[str, Any],
+    topic_models: Any = None,
+    nmf: Optional[Any] = None,
+    sentiment_models: Optional[SentimentInferenceModels] = None,
+) -> Dict[str, Any]:
     extractive = extractive_summary(text, max_sentences=3)
     try:
         abstractive = abstractive_summary(text)
     except Exception:
         abstractive = None
 
-    topics: List[Dict[str, Any]] = []
-    if tfidf is not None and nmf is not None:
+    topic_bundle: Dict[str, Any] = {"summary": [], "detailed": [], "primary": None}
+    resolved_models: Optional[TopicModels] = None
+    if topic_models is not None:
+        try:
+            resolved_models = _coerce_topic_models(topic_models, nmf)
+        except ValueError:
+            resolved_models = None
+    if resolved_models is not None:
         topic_text = clean_text(text)
-        topics = get_topics_for_doc(topic_text, tfidf, nmf)
+        topic_bundle = get_topics_for_doc(topic_text, resolved_models)
+
+    topics: List[Dict[str, Any]] = list(topic_bundle.get("summary", [])) if topic_bundle else []
+    detailed_topics: List[Dict[str, Any]] = list(topic_bundle.get("detailed", [])) if topic_bundle else []
 
     if not topics:
         fallback_topic = _classify_high_level_topic(text)
         category_key = fallback_topic.get("key", "other")
-        topics = [
-            {
-                "label": CATEGORY_DISPLAY.get(category_key, CATEGORY_DISPLAY["other"]),
-                "category_key": category_key,
-                "confidence": round(fallback_topic.get("confidence", 0.5), 4),
-                "score": round(max(fallback_topic.get("confidence", 0.25), 0.25), 5),
-                "share": 1.0,
-                "keywords": fallback_topic.get("matched_terms", []),
-                "matched_terms": fallback_topic.get("matched_terms", []),
-                "mentions": 1,
-            }
-        ]
+        fallback_entry = {
+            "label": CATEGORY_DISPLAY.get(category_key, CATEGORY_DISPLAY["other"]),
+            "category_key": category_key,
+            "confidence": round(fallback_topic.get("confidence", 0.5), 4),
+            "score": round(max(fallback_topic.get("confidence", 0.25), 0.25), 5),
+            "share": 1.0,
+            "keywords": fallback_topic.get("matched_terms", []),
+            "matched_terms": fallback_topic.get("matched_terms", []),
+            "mentions": 1,
+        }
+        topics = [fallback_entry]
+        detailed_topics = [fallback_entry]
+        topic_bundle = {"summary": topics, "detailed": detailed_topics, "primary": fallback_entry}
 
-    primary_topic = topics[0] if topics else None
+    primary_topic = topic_bundle.get("primary") or (topics[0] if topics else None)
+    if primary_topic and len(topics) > 1:
+        topics = [primary_topic] + [topic for idx, topic in enumerate(topics) if topic is not primary_topic and idx != 0]
+    if not detailed_topics:
+        detailed_topics = topics
     keywords_with_scores = _extract_keywords(text)
     keyword_terms = [item["term"] for item in keywords_with_scores]
     sentiment = _normalise_sentiment(sentiment_result)
+
+    narratives = _topic_narratives(text, topics, sentiment_models)
+    narratives = narratives[:6]
 
     label = str(sentiment.get("label", "")).upper()
     score = sentiment.get("score")
@@ -646,8 +900,11 @@ def generate_insights(text: str, sentiment_result: Dict[str, Any], tfidf=None, n
         "abstractive_summary": abstractive,
         "topics": topics,
         "primary_topic": primary_topic,
+        "topic_details": detailed_topics,
+        "topic_narratives": narratives,
         "sentiment": sentiment,
         "suggestions": suggestions,
         "keyword_cloud": keyword_terms,
         "keyword_cloud_weighted": keywords_with_scores,
+        "topic_models_available": resolved_models is not None,
     }
