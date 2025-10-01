@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 import joblib
 import numpy as np
@@ -35,6 +35,7 @@ MODEL_DIR = Path("models")
 MAX_WORDS = 10000
 MAX_LEN = 200
 EMBEDDING_DIM = 100
+NEUTRAL_POLARITY_THRESHOLD = 0.08
 
 
 @dataclass
@@ -79,7 +80,12 @@ def evaluate_model(y_true, y_pred, y_prob) -> Dict[str, float]:
 def rule_based_sentiment(text: str) -> Dict[str, float]:
     blob = TextBlob(text)
     polarity = float(blob.sentiment.polarity)
-    label = "positive" if polarity >= 0 else "negative"
+    if polarity >= NEUTRAL_POLARITY_THRESHOLD:
+        label = "positive"
+    elif polarity <= -NEUTRAL_POLARITY_THRESHOLD:
+        label = "negative"
+    else:
+        label = "neutral"
     probability = (polarity + 1) / 2  # map [-1,1] -> [0,1]
     return {
         "label": label,
@@ -87,6 +93,47 @@ def rule_based_sentiment(text: str) -> Dict[str, float]:
         "probability": probability,
         "subjectivity": float(blob.sentiment.subjectivity),
     }
+
+
+def _expand_binary_probability(prob: float) -> Dict[str, float]:
+    prob = max(0.0, min(1.0, float(prob)))
+    neutral = max(0.0, 1.0 - abs(prob - 0.5) * 2.0)
+    active = 1.0 - neutral
+    positive = prob * active
+    negative = (1.0 - prob) * active
+    total = positive + negative + neutral
+    if total <= 0:
+        return {"positive": 0.5, "negative": 0.5, "neutral": 0.0}
+    return {
+        "positive": positive / total,
+        "negative": negative / total,
+        "neutral": neutral / total,
+    }
+
+
+def _normalise_distribution(distribution: Dict[str, float]) -> Dict[str, float]:
+    positive = max(0.0, float(distribution.get("positive", 0.0)))
+    negative = max(0.0, float(distribution.get("negative", 0.0)))
+    neutral = max(0.0, float(distribution.get("neutral", 0.0)))
+    total = positive + negative + neutral
+    if total <= 0:
+        return {"positive": 0.5, "negative": 0.5, "neutral": 0.0}
+    return {
+        "positive": positive / total,
+        "negative": negative / total,
+        "neutral": neutral / total,
+    }
+
+
+def _distribution_to_label(distribution: Dict[str, float]) -> str:
+    if not distribution:
+        return "neutral"
+    return max(distribution.items(), key=lambda item: item[1])[0]
+
+
+def _distribution_confidence(distribution: Dict[str, float]) -> float:
+    label = _distribution_to_label(distribution)
+    return float(distribution.get(label, 0.0))
 
 
 def train_logistic_regression(X: Sequence[str], y: Sequence[int], model_dir: Path) -> Dict[str, Any]:
@@ -179,15 +226,27 @@ def load_sentiment_models(model_dir: Path = MODEL_DIR) -> SentimentInferenceMode
         try:  # pragma: no cover - download can fail on CI without internet
             transformer = pipeline(
                 "sentiment-analysis",
-                model="distilbert-base-uncased-finetuned-sst-2-english",
+                model="cardiffnlp/twitter-roberta-base-sentiment-latest",
+                tokenizer="cardiffnlp/twitter-roberta-base-sentiment-latest",
                 return_all_scores=True,
-                framework="pt",
                 device=-1,
                 truncation=True,
+                max_length=256,
             )
-        except Exception as exc:  # pragma: no cover - runtime guard
-            transformer = None
-            print("⚠️ Transformer sentiment model unavailable:", exc)
+        except Exception as primary_exc:  # pragma: no cover - runtime guard
+            print("⚠️ CardiffNLP sentiment model unavailable:", primary_exc)
+            try:
+                transformer = pipeline(
+                    "sentiment-analysis",
+                    model="distilbert-base-uncased-finetuned-sst-2-english",
+                    return_all_scores=True,
+                    framework="pt",
+                    device=-1,
+                    truncation=True,
+                )
+            except Exception as fallback_exc:  # pragma: no cover - runtime guard
+                transformer = None
+                print("⚠️ Transformer sentiment model unavailable:", fallback_exc)
 
     return SentimentInferenceModels(
         ml_model=ml_model,
@@ -214,158 +273,188 @@ def _predict_dl(texts: Sequence[str], models: SentimentInferenceModels) -> Optio
     return probs
 
 
-def _predict_transformer(texts: Sequence[str], models: SentimentInferenceModels) -> Optional[Tuple[List[float], List[str]]]:
+def _predict_transformer(texts: Sequence[str], models: SentimentInferenceModels) -> Optional[List[Dict[str, float]]]:
     pipe = getattr(models, "transformer_pipeline", None)
     if pipe is None:
         return None
 
     try:
-        outputs = pipe(list(texts))
+        outputs = pipe(list(texts), return_all_scores=True)
     except Exception as exc:
         print("⚠️ Transformer inference failed:", exc)
         return None
-    probabilities: List[float] = []
-    labels: List[str] = []
 
+    distributions: List[Dict[str, float]] = []
     for result in outputs:
         entries = result if isinstance(result, list) else [result]
-        pos_entry = next((item for item in entries if str(item["label"]).upper().startswith("POS")), None)
-        neg_entry = next((item for item in entries if str(item["label"]).upper().startswith("NEG")), None)
+        probs = {"positive": 0.0, "negative": 0.0, "neutral": 0.0}
+        for entry in entries:
+            label = str(entry["label"]).lower()
+            score = float(entry["score"])
+            if "pos" in label or label.endswith("_2"):
+                probs["positive"] = max(probs["positive"], score)
+            elif "neg" in label or label.endswith("_0"):
+                probs["negative"] = max(probs["negative"], score)
+            elif "neu" in label or label.endswith("_1"):
+                probs["neutral"] = max(probs["neutral"], score)
+        total = sum(probs.values())
+        if total <= 0 and entries:
+            primary = entries[0]
+            base_label = str(primary["label"]).lower()
+            base_score = float(primary["score"])
+            if "neg" in base_label:
+                probs["negative"] = base_score
+                probs["positive"] = max(0.0, 1.0 - base_score)
+            elif "pos" in base_label:
+                probs["positive"] = base_score
+                probs["negative"] = max(0.0, 1.0 - base_score)
+            else:
+                probs["neutral"] = max(0.0, base_score)
+        distributions.append(_normalise_distribution(probs))
 
-        if pos_entry is not None:
-            prob = float(pos_entry["score"])
-        elif neg_entry is not None:
-            prob = 1.0 - float(neg_entry["score"])
-        else:
-            prob = float(entries[0]["score"])
-
-        label = "positive" if prob >= 0.5 else "negative"
-        probabilities.append(prob)
-        labels.append(label)
-
-    return probabilities, labels
-
-
-def _prob_to_label(prob: float) -> str:
-    return "positive" if prob >= 0.5 else "negative"
+    return distributions
 
 
 def analyze_sentiment_text(text: str, models: Optional[SentimentInferenceModels]) -> Dict[str, Any]:
-    rule_info = rule_based_sentiment(text)
-    rule_info["confidence"] = abs(float(rule_info["probability"]) - 0.5) * 2
+    rule_raw = rule_based_sentiment(text)
+    rule_distribution = _expand_binary_probability(rule_raw["probability"])
+    rule_confidence = _distribution_confidence(rule_distribution)
+    rule_payload: Dict[str, Any] = {
+        **rule_raw,
+        "distribution": rule_distribution,
+        "confidence": rule_confidence,
+    }
 
     if models is None:
-        avg_prob = float(rule_info["probability"])
-        label = rule_info["label"]
-        confidence = abs(avg_prob - 0.5) * 2
-        neutral_weight = max(0.0, 1.0 - confidence)
-        active_weight = 1.0 - neutral_weight
-        positive_weight = max(0.0, avg_prob * active_weight)
-        negative_weight = max(0.0, (1.0 - avg_prob) * active_weight)
-        total_weight = positive_weight + negative_weight + neutral_weight
-        if total_weight > 0:
-            distribution = {
-                "positive": positive_weight / total_weight,
-                "neutral": neutral_weight / total_weight,
-                "negative": negative_weight / total_weight,
-            }
-        else:
-            distribution = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
-
+        overall_label = _distribution_to_label(rule_distribution)
+        overall_probability = rule_distribution["positive"]
         return {
-            "overall": {"label": label, "confidence": confidence, "probability": avg_prob},
-            "rule_based": rule_info,
+            "overall": {
+                "label": overall_label,
+                "confidence": rule_confidence,
+                "probability": overall_probability,
+            },
+            "rule_based": rule_payload,
             "ml": None,
             "dl": None,
             "transformer": None,
-            "distribution": distribution,
+            "distribution": rule_distribution,
+            "votes": {overall_label: 1},
+            "models": [
+                {
+                    "name": "rule_based",
+                    "weight": 1.0,
+                    "label": overall_label,
+                    "confidence": rule_confidence,
+                    "distribution": rule_distribution,
+                }
+            ],
         }
 
-    ml_prob = _predict_ml([text], models)
-    ml_info = None
-    if ml_prob is not None:
-        ml_prob = float(ml_prob[0])
-        ml_confidence = abs(ml_prob - 0.5) * 2
-        ml_info = {"label": _prob_to_label(ml_prob), "probability": ml_prob, "confidence": ml_confidence}
-
-    dl_prob = _predict_dl([text], models)
-    dl_info = None
-    if dl_prob is not None:
-        dl_prob = float(dl_prob[0])
-        dl_confidence = abs(dl_prob - 0.5) * 2
-        dl_info = {"label": _prob_to_label(dl_prob), "probability": dl_prob, "confidence": dl_confidence}
-
-    transformer_probs = _predict_transformer([text], models)
-    transformer_info = None
-    if transformer_probs is not None:
-        prob = float(transformer_probs[0][0])
-        label = transformer_probs[1][0]
-        transformer_confidence = abs(prob - 0.5) * 2
-        transformer_info = {"label": label, "probability": prob, "confidence": transformer_confidence}
-
-    contributions: List[Tuple[float, float]] = []
+    aggregate_scores = {"positive": 0.0, "negative": 0.0, "neutral": 0.0}
+    total_weight = 0.0
     votes: Counter[str] = Counter()
+    model_snapshots: List[Dict[str, Any]] = []
 
-    rule_prob = float(rule_info["probability"])
-    rule_weight = 1.3
-    contributions.append((rule_prob, rule_weight))
-    votes[_prob_to_label(rule_prob)] += 1
-
-    def _register_model(info: Optional[Dict[str, float]], base_weight: float) -> None:
+    def register_model(name: str, info: Optional[Dict[str, Any]], base_weight: float) -> None:
+        nonlocal total_weight
         if info is None:
             return
-        prob = float(info["probability"])
-        confidence = abs(prob - 0.5) * 2
-        adaptive_weight = base_weight * (0.35 + 0.65 * confidence)
-        disagreement = abs(prob - rule_prob)
-        if disagreement >= 0.35:
-            adaptive_weight *= 0.3
-        elif disagreement >= 0.2:
-            adaptive_weight *= 0.55
-        contributions.append((prob, adaptive_weight))
-        votes[_prob_to_label(prob)] += 1
+        distribution = _normalise_distribution(info.get("distribution", {}))
+        info["distribution"] = distribution
+        info.setdefault("confidence", _distribution_confidence(distribution))
+        confidence = float(info["confidence"])
+        weight = base_weight * (0.4 + 0.6 * confidence)
+        if votes:
+            majority_label, _ = votes.most_common(1)[0]
+            if distribution.get(majority_label, 0.0) < 0.34 and confidence > 0.3:
+                weight *= 0.65
+        for label, prob in distribution.items():
+            aggregate_scores[label] += prob * weight
+        total_weight += weight
+        top_label = _distribution_to_label(distribution)
+        votes[top_label] += 1
+        model_snapshots.append(
+            {
+                "name": name,
+                "weight": weight,
+                "label": top_label,
+                "confidence": confidence,
+                "distribution": distribution,
+            }
+        )
 
-    _register_model(ml_info, base_weight=0.9)
-    _register_model(dl_info, base_weight=0.9)
-    _register_model(transformer_info, base_weight=1.6)
+    register_model("rule_based", rule_payload, base_weight=0.9)
 
-    if contributions:
-        total_weight = sum(weight for _, weight in contributions)
-        weighted_sum = sum(prob * weight for prob, weight in contributions)
-        avg_prob = weighted_sum / total_weight if total_weight else rule_prob
-    else:
-        avg_prob = rule_prob
-
-    overall_label = _prob_to_label(avg_prob)
-    if votes:
-        voted_label, vote_count = votes.most_common(1)[0]
-        if vote_count >= 2 or len(votes) == 1:
-            overall_label = voted_label
-
-    confidence = abs(avg_prob - 0.5) * 2
-
-    neutral_weight = max(0.0, 1.0 - confidence)
-    active_weight = 1.0 - neutral_weight
-    positive_weight = max(0.0, avg_prob * active_weight)
-    negative_weight = max(0.0, (1.0 - avg_prob) * active_weight)
-    total_weight = positive_weight + negative_weight + neutral_weight
-
-    if total_weight > 0:
-        distribution = {
-            "positive": positive_weight / total_weight,
-            "neutral": neutral_weight / total_weight,
-            "negative": negative_weight / total_weight,
+    ml_info: Optional[Dict[str, Any]] = None
+    ml_prob = _predict_ml([text], models)
+    if ml_prob is not None:
+        ml_value = float(ml_prob[0])
+        ml_distribution = _expand_binary_probability(ml_value)
+        ml_info = {
+            "label": _distribution_to_label(ml_distribution),
+            "probability": ml_value,
+            "confidence": _distribution_confidence(ml_distribution),
+            "distribution": ml_distribution,
         }
+        register_model("ml", ml_info, base_weight=1.6)
+
+    dl_info: Optional[Dict[str, Any]] = None
+    dl_prob = _predict_dl([text], models)
+    if dl_prob is not None:
+        dl_value = float(dl_prob[0])
+        dl_distribution = _expand_binary_probability(dl_value)
+        dl_info = {
+            "label": _distribution_to_label(dl_distribution),
+            "probability": dl_value,
+            "confidence": _distribution_confidence(dl_distribution),
+            "distribution": dl_distribution,
+        }
+        register_model("dl", dl_info, base_weight=1.25)
+
+    transformer_info: Optional[Dict[str, Any]] = None
+    transformer_outputs = _predict_transformer([text], models)
+    if transformer_outputs:
+        transformer_distribution = _normalise_distribution(transformer_outputs[0])
+        transformer_info = {
+            "label": _distribution_to_label(transformer_distribution),
+            "probability": transformer_distribution.get("positive", 0.0),
+            "confidence": _distribution_confidence(transformer_distribution),
+            "distribution": transformer_distribution,
+        }
+        register_model("transformer", transformer_info, base_weight=1.8)
+
+    if total_weight <= 0:
+        aggregated_distribution = rule_distribution
     else:
-        distribution = {"positive": 0.0, "neutral": 0.0, "negative": 0.0}
+        total = sum(aggregate_scores.values())
+        if total <= 0:
+            aggregated_distribution = rule_distribution
+        else:
+            aggregated_distribution = {
+                label: aggregate_scores[label] / total for label in aggregate_scores
+            }
+
+    overall_label = _distribution_to_label(aggregated_distribution)
+    overall_confidence = _distribution_confidence(aggregated_distribution)
+    overall_probability = aggregated_distribution.get("positive", 0.0)
+
+    if not votes:
+        votes[overall_label] += 1
 
     return {
-        "overall": {"label": overall_label, "confidence": confidence, "probability": avg_prob},
-        "rule_based": rule_info,
+        "overall": {
+            "label": overall_label,
+            "confidence": overall_confidence,
+            "probability": overall_probability,
+        },
+        "rule_based": rule_payload,
         "ml": ml_info,
         "dl": dl_info,
         "transformer": transformer_info,
-        "distribution": distribution,
+        "distribution": aggregated_distribution,
+        "votes": dict(votes),
+        "models": model_snapshots,
     }
 
 

@@ -34,8 +34,9 @@ async def test_sentiment_endpoint_includes_all_detectors(async_client):
     response = await async_client.post("/sentiment", json={"text": "This product is amazing and I love it."})
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload.keys()) == {"overall", "rule_based", "ml", "dl", "transformer", "distribution"}
-    assert payload["overall"]["label"] in {"positive", "negative"}
+    expected_keys = {"overall", "rule_based", "ml", "dl", "transformer", "distribution"}
+    assert expected_keys.issubset(set(payload.keys()))
+    assert payload["overall"]["label"] in {"positive", "negative", "neutral"}
     assert "probability" in payload["overall"]
     assert set(payload["distribution"].keys()) == {"positive", "neutral", "negative"}
 
@@ -52,3 +53,28 @@ async def test_analyze_endpoint_returns_keywords_and_summaries(async_client):
     assert isinstance(payload["keyword_cloud"], list)
     assert "suggestions" in payload
     assert "sentiment" in payload
+    assert "topics" in payload
+    assert isinstance(payload["topics"], list)
+    assert "primary_topic" in payload
+    assert "topic_details" in payload
+
+
+async def test_report_endpoint_returns_markdown(async_client):
+    response = await async_client.post(
+        "/report",
+        json={
+            "text": "AI driven analytics can surface narrative insights instantly.",
+            "include_markdown": True,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "report" in payload
+    assert "markdown" in payload
+    report = payload["report"]
+    assert "executive_summary" in report
+    assert "sentiment_overview" in report
+    assert "topic_intelligence" in report
+    assert "recommendations" in report
+    assert "raw_analysis" in report
+    assert isinstance(payload["markdown"], str) and payload["markdown"].strip()

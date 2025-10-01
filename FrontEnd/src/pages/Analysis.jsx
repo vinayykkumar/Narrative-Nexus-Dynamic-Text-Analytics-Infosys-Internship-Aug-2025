@@ -5,11 +5,18 @@ import {
   FilePlusIcon,
   Folder,
   Loader2,
+  LucideLightbulb,
   MessageSquare,
   NotepadText,
+  NotepadTextDashedIcon,
   Sparkles,
   Wand2,
 } from "lucide-react";
+import SentimentDistribution from "../components/charts/SentimentDistribution";
+import TopicDistribution from "../components/charts/TopicDistribution";
+import KeywordWordCloud from "../components/charts/KeywordWordCloud";
+import TopicHighlights from "../components/charts/TopicHighlights";
+import TopicConfidenceRadar from "../components/charts/TopicConfidenceRadar";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const STEPS = [
@@ -50,6 +57,9 @@ const Analysis = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState("");
   const resultRef = useRef(null);
+  const [selectedSentimentKey, setSelectedSentimentKey] = useState(null);
+  const [selectedTopicKey, setSelectedTopicKey] = useState(null);
+  const [selectedKeyword, setSelectedKeyword] = useState(null);
 
   const {
     setAnalysisData = () => {},
@@ -84,6 +94,9 @@ const Analysis = () => {
     setAnalysis(null);
     setError("");
     setCurrentStep(0);
+    setSelectedSentimentKey(null);
+    setSelectedTopicKey(null);
+    setSelectedKeyword(null);
   };
 
   const validateFile = (selectedFile) => {
@@ -129,6 +142,9 @@ const Analysis = () => {
     setAnalysis(null);
     setError("");
     setCurrentStep(0);
+  setSelectedSentimentKey(null);
+  setSelectedTopicKey(null);
+  setSelectedKeyword(null);
 
     const scrollTimeout = setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -162,16 +178,35 @@ const Analysis = () => {
         return;
       }
 
+      const computeTopicKey = (topic, index = 0) => {
+        if (!topic) return null;
+        if (topic.category_key) return topic.category_key;
+        if (typeof topic.original_topic_id !== "undefined" && topic.original_topic_id !== null) {
+          return `topic-${topic.original_topic_id}`;
+        }
+        return `topic-${index}`;
+      };
+
       setAnalysis(result);
       setAnalysisData({
         extractiveSummary: result.extractive_summary ?? "",
         abstractiveSummary: result.abstractive_summary ?? "",
         topics: result.topics ?? [],
+        topicDetails: result.topic_details ?? [],
+        primaryTopic: result.primary_topic ?? null,
         keywordCloud: result.keyword_cloud ?? [],
         suggestions: result.suggestions ?? [],
       });
       setSentimentData(result.sentiment ?? null);
       setInsights(result.suggestions ?? []);
+      setSelectedSentimentKey(result.sentiment?.overall?.label ?? null);
+      const defaultTopicKey =
+        computeTopicKey(result.primary_topic, 0) ??
+        (Array.isArray(result.topics) ? computeTopicKey(result.topics[0], 0) : null);
+      setSelectedTopicKey(defaultTopicKey);
+      const firstKeyword =
+        result.keyword_cloud_weighted?.[0]?.term ?? result.keyword_cloud?.[0] ?? null;
+      setSelectedKeyword(firstKeyword);
     } catch (err) {
       console.error("Analysis error", err);
       setError("Something went wrong while analyzing the data. Please try again.");
@@ -238,6 +273,33 @@ const Analysis = () => {
     overallConfidence != null ? formatPercentage(overallConfidence) : "--";
 
   const topics = Array.isArray(analysis?.topics) ? analysis.topics : [];
+  const primaryTopic =
+    analysis?.primary_topic ?? (topics.length > 0 ? topics[0] : null);
+  const primaryTopicKey = primaryTopic
+    ? `${primaryTopic.category_key ?? ""}:${primaryTopic.label ?? ""}`
+    : null;
+  const secondaryTopics = primaryTopicKey
+    ? topics.filter((topic, index) => {
+        const topicKey = `${topic?.category_key ?? ""}:${topic?.label ?? ""}`;
+        if (analysis?.primary_topic) {
+          return topicKey !== primaryTopicKey;
+        }
+        return index !== 0;
+      })
+    : topics;
+  const combinedTopics = [primaryTopic, ...secondaryTopics].filter(Boolean);
+  const visualTopics = combinedTopics.map((topic, index) => ({
+    ...topic,
+    __id:
+      topic?.category_key ??
+      `topic-${typeof topic?.original_topic_id !== "undefined" && topic?.original_topic_id !== null ? topic.original_topic_id : index}`,
+  }));
+  const keywordCloudWeighted = Array.isArray(analysis?.keyword_cloud_weighted)
+    ? analysis.keyword_cloud_weighted
+    : Array.isArray(analysis?.keyword_cloud)
+    ? analysis.keyword_cloud.map((term, idx) => ({ term, score: 1 - idx * 0.05 }))
+    : [];
+  const selectedTopicDetails = visualTopics.find((topic) => topic.__id === selectedTopicKey);
 
   return (
     <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-24">
@@ -311,7 +373,7 @@ const Analysis = () => {
             <button
               type="button"
               onClick={resetState}
-              className="px-6 py-2 border border-white/30 text-gray-300 cursor-pointer rounded-full hover:bg-white/10 transition"
+              className="px-6 py-2 border border-white/30 text-gray-300 rounded-full hover:bg-white/10 transition"
             >
               Reset
             </button>
@@ -319,7 +381,7 @@ const Analysis = () => {
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />} {loading ? "Analyzing..." : "Analyze"}
             </button>
@@ -329,10 +391,10 @@ const Analysis = () => {
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 backdrop-blur rounded-xl py-10 px-6 space-y-5">
+          <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-xl py-10 px-6 space-y-5">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
             <div className="text-gray-300 text-center space-y-2">
-              <p className="font-medium">Analyzing text...</p>
+              <p className="font-medium">Analyzing data...</p>
               <ul className="list-disc list-inside text-left space-y-1 text-gray-400">
                 {STEPS.map((step, idx) => (
                   <li
@@ -364,6 +426,108 @@ const Analysis = () => {
         <div ref={resultRef} className="space-y-6">
           {analysis && !loading && (
             <div className="flex flex-col gap-6">
+            
+              <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Wand2 className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-primary text-lg">Topics</h3>
+                </div>
+                
+                {primaryTopic || topics.length > 0 ? (
+                  <div className="space-y-6">
+                    {primaryTopic && (
+                      <div className="p-4 rounded-lg bg-gradient-to-tr from-indigo-500/20 via-black to-purple-500/10 border border-white/20 text-white">
+                        <div className="text-xs uppercase tracking-[0.2em] text-white/70 mb-2">
+                          Primary Topic
+                        </div>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <div className="text-2xl font-bold">
+                              {primaryTopic?.label ?? "Key Theme"}
+                            </div>
+                            <p className="text-sm text-white/80 mt-2 max-w-2xl">
+                              {Array.isArray(primaryTopic?.keywords) && primaryTopic.keywords.length > 0
+                                ? `Key signals: ${primaryTopic.keywords.slice(0, 8).join(", ")}`
+                                : "This theme captures the dominant narrative discovered within the text."}
+                            </p>
+                          </div>
+                          <div className="text-center md:text-right">
+                            <div className="text-lg font-semibold text-primary">
+                              {formatPercentage(
+                                Number.isFinite(primaryTopic?.share)
+                                  ? Math.min(Math.max(primaryTopic.share, 0), 1)
+                                  : Math.min(Math.max(Number(primaryTopic?.confidence ?? 0), 0), 1)
+                              )}
+                            </div>
+                            <p className="text-xs text-white/70">Estimated relevance</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {secondaryTopics.length > 0 && (
+                      <div className="space-y-6">
+                        <div className="flex flex-col gap-5 xl:flex-row">
+                          <div className="xl:w-7/12 w-full space-y-5">
+                            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm uppercase tracking-wide text-white/70">
+                                  Theme Distribution
+                                </h4>
+                                <span className="text-xs text-white/50">
+                                  {secondaryTopics.length} theme{secondaryTopics.length === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <TopicDistribution
+                                topics={visualTopics}
+                                selectedTopicKey={selectedTopicKey}
+                                onTopicSelect={(key) => {
+                                  setSelectedTopicKey((prev) => (prev === key ? null : key));
+                                  const match = visualTopics.find((topic) => topic.__id === key);
+                                  if (match?.keywords && match.keywords.length > 0) {
+                                    setSelectedKeyword(match.keywords[0]);
+                                  } else {
+                                    setSelectedKeyword(null);
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            <TopicConfidenceRadar topics={visualTopics} />
+                          </div>
+
+                          <div className="xl:w-5/12 w-full space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm uppercase tracking-wide text-white/70">
+                                Spotlight Themes
+                              </h4>
+                              <span className="text-xs text-white/50">Tap to drill in</span>
+                            </div>
+                            <TopicHighlights
+                              topics={visualTopics}
+                              selectedTopicKey={selectedTopicKey}
+                              onTopicSelect={(key) => {
+                                setSelectedTopicKey((prev) => (prev === key ? null : key));
+                                const match = visualTopics.find((topic) => topic.__id === key);
+                                if (match?.keywords && match.keywords.length > 0) {
+                                  setSelectedKeyword(match.keywords[0]);
+                                } else {
+                                  setSelectedKeyword(null);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-white/70 text-sm">
+                    No dominant topics were detected. Try analyzing a longer passage for richer insights.
+                  </p>
+                )}
+              </div>
+
               <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex flex-col gap-5">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
@@ -374,37 +538,64 @@ const Analysis = () => {
                   {sentimentCards.map((card) => (
                     <div
                       key={card.key}
-                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur ${card.className}`}
+                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur transition ring-0 ${
+                        card.className
+                      } ${
+                        selectedSentimentKey === card.key
+                          ? "ring-2 ring-offset-2 ring-offset-black/40 ring-primary/70"
+                          : "hover:ring-1 hover:ring-primary/40"
+                      }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedSentimentKey(card.key)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedSentimentKey(card.key);
+                        }
+                      }}
                     >
-                      <p className="text-sm text-center uppercase tracking-wide text-white/70">{card.label}</p>
+                      <p className="text-xs text-center uppercase tracking-wide text-white/70">{card.label}</p>
                       <p className="text-3xl text-center font-semibold mt-2 text-white">{card.value}</p>
                       <p className="text-xs text-center mt-3 text-white/70 leading-snug">{card.description}</p>
                     </div>
                   ))}
                 </div>
 
+                <div className="bg-slate-900/50 border border-white/10 rounded-xl p-5">
+                  <h4 className="text-sm uppercase tracking-wide text-white/60 text-center mb-4">
+                    Sentiment Distribution
+                  </h4>
+                  <SentimentDistribution
+                    distribution={sentimentDistribution}
+                    overallLabel={overallLabel}
+                    selectedKey={selectedSentimentKey}
+                    onSegmentSelect={setSelectedSentimentKey}
+                  />
+                </div>
+
                 <div className="bg-black/40 border border-white/10 rounded-xl p-5 text-center">
-                  <p className="text-lg uppercase tracking-wide text-white/60">Overall Sentiment</p>
+                  <p className="text-xs uppercase tracking-wide text-white/60">Overall Sentiment</p>
                   <div className="mt-3 flex items-center justify-center gap-2">
                     <span className="text-3xl font-semibold text-white">{overallLabel.toUpperCase()}</span>
                     <span className="text-3xl" role="img" aria-label="overall sentiment emoji">
                       {overallEmoji}
                     </span>
                   </div>
-                  <p className="text-md text-gray-300 mt-2">
+                  <p className="text-sm text-gray-300 mt-2">
                     {overallConfidencePercent} confidence
                   </p>
                   {overallProbability != null && (
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                       Combined positive probability: {formatPercentage(overallProbability)}
                     </p>
                   )}
-                  <p className="text-sm text-gray-500 mt-3">
+                  <p className="text-xs text-gray-500 mt-3">
                     This is the dominant sentiment based on the ensemble analysis across rule-based, ML, LSTM, and transformer models.
                   </p>
                 </div>
 
-                <div className="text-sm text-gray-400 space-y-1 border-t border-white/10 pt-4">
+                <div className="text-xs text-gray-400 space-y-1 border-t border-white/10 pt-4">
                   <p>
                     Rule-based polarity {formatProbability(analysis.sentiment?.rule_based?.polarity)}, subjectivity {formatProbability(analysis.sentiment?.rule_based?.subjectivity)}
                   </p>
@@ -420,113 +611,63 @@ const Analysis = () => {
                 </div>
               </div>
 
-              <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <Wand2 className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold text-primary text-lg">Topics</h3>
-                </div>
-
-                {topics.length > 0 && (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {topics.map((topic, index) => {
-                        const label = topic?.label || `Topic ${index + 1}`;
-                        const relevanceBase = Number(
-                          topic?.share ?? topic?.confidence ?? topic?.score ?? 0
-                        );
-                        const normalizedRelevance = Number.isFinite(relevanceBase)
-                          ? Math.max(relevanceBase, 0)
-                          : 0;
-                        const relevancePercent = `${(normalizedRelevance * 100).toFixed(1)}%`;
-                        const description =
-                          topic?.description ||
-                          (Array.isArray(topic?.keywords) && topic.keywords.length > 0
-                            ? `Key signals: ${topic.keywords.slice(0, 6).join(", ")}`
-                            : "This theme was identified as a significant pattern in the text.");
-
-                        return (
-                          <div
-                            key={`${label}-${index}`}
-                            className="p-4 rounded-lg bg-gradient-to-tr from-blue-300/20 via-indigo-400/10 to-white/10 text-white shadow transition"
-                          >
-                            <div className="text-xl font-bold mb-2 text-center">{label}</div>
-                            <div className="text-lg font-semibold text-center mb-2">
-                              {relevancePercent} relevance
-                            </div>
-                            <div className="text-sm text-center text-white/80"> {description}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-6 p-4 rounded-lg bg-gradient-to-bl from-blue-300/20 via-indigo-400/10 to-white/10 text-white text-center">
-                      <div className="text-xl font-semibold mb-2 text-white/60">Overall Key Themes</div>
-                      
-                      <div className="text-2xl my-4 font-bold">
-                        {topics
-                          .map((topic, index) => topic?.label || `Topic ${index + 1}`)
-                          .join(", ")}
-                      </div>
-                      <div className="text-sm text-white/80">
-                        These are the most dominant themes detected from the input text.
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
               {(analysis.extractive_summary || analysis.abstractive_summary) && (
-                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <NotepadText className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold text-primary text-lg">Summaries</h3>
-                  </div>
+  <div className="p-6 bg-gradient-to-br from-indigo-950/60 to-gray-900/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg">
+    <div className="flex items-center gap-3 mb-5">
+      <NotepadText className="w-6 h-6 text-primary drop-shadow" />
+      <h3 className="font-bold text-indigo-300 text-xl tracking-wide">Summarization</h3>
+    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {analysis.extractive_summary && (
-                      <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
-                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
-                          Extractive Summary
-                        </h3>
-                        <p className="text-gray-200 text-sm whitespace-pre-line">
-                          {analysis.extractive_summary}
-                        </p>
-                      </div>
-                    )}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {analysis.extractive_summary && (
+        <div className="p-5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-primary/30 text-white rounded-xl shadow-md hover:scale-[1.02] transition-transform duration-300">
+          <h3 className="font-semibold text-indigo-300 text-lg mb-3">
+            Extractive Summary
+          </h3>
+          <p className="text-gray-100 text-sm leading-relaxed">
+            {analysis.extractive_summary}
+          </p>
+        </div>
+      )}
 
-                    {analysis.abstractive_summary && (
-                      <div className="p-5 bg-gradient-to-br from-blue-300/20 via-indigo-400/10 to-white/10 text-white rounded-xl">
-                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
-                          Abstractive Summary
-                        </h3>
-                        <p className="text-gray-200 text-sm whitespace-pre-line">
-                          {analysis.abstractive_summary}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+      {analysis.abstractive_summary && (
+        <div className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white rounded-xl shadow-md hover:scale-[1.02] transition-transform duration-300">
+          <h3 className="font-semibold text-purple-300 text-lg mb-3">
+            Abstractive Summary
+          </h3>
+          <p className="text-gray-100 text-sm leading-relaxed">
+            {analysis.abstractive_summary}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
-              {analysis.keyword_cloud && analysis.keyword_cloud.length > 0 && (
-                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3">Keyword Cloud</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.keyword_cloud.slice(0, 20).map((word, idx) => (
-                      <span
-                        key={`${word}-${idx}`}
-                        className="bg-indigo-100/90 text-indigo-700 px-3 py-1 rounded-full text-xs"
-                      >
-                        {word}
+
+              {keywordCloudWeighted.length > 0 && (
+                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-primary text-lg flex gap-2"><NotepadTextDashedIcon/> Keyword Cloud</h3>
+                    {selectedTopicDetails?.label && (
+                      <span className="text-xs text-white/70">
+                        Highlighting signals for {selectedTopicDetails.label}
                       </span>
-                    ))}
+                    )}
                   </div>
+                  <KeywordWordCloud
+                    keywords={keywordCloudWeighted}
+                    selectedKeyword={selectedKeyword}
+                    onKeywordSelect={(term) =>
+                      setSelectedKeyword((prev) => (prev === term ? null : term))
+                    }
+                  />
                 </div>
               )}
 
               {analysis.suggestions && analysis.suggestions.length > 0 && (
                 <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3">Suggestions</h3>
+                  <h3 className="font-semibold text-primary text-lg mb-3 flex gap-2"><LucideLightbulb/>Suggestions</h3>
                   <ul className="list-disc list-inside text-gray-300 text-sm space-y-1">
                     {analysis.suggestions.map((suggestion, idx) => (
                       <li key={`${suggestion}-${idx}`}>{suggestion}</li>
@@ -538,7 +679,7 @@ const Analysis = () => {
           )}
 
           {!analysis && !loading && (
-            <div className="p-6 bg-white/10 border border-white/20 backdrop-blur rounded-xl text-sm text-gray-400 flex items-center gap-3">
+            <div className="p-6 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-400 flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-primary" />
               <p>
                 Submit text or upload a document to reveal sentiment, topic insights, summaries, and tailored suggestions.
