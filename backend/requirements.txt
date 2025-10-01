@@ -26,6 +26,8 @@ python-multipart
 docx2txt
 python-docx
 PyPDF2
+# Reporting
+reportlab
 
 # Utils
 tqdm

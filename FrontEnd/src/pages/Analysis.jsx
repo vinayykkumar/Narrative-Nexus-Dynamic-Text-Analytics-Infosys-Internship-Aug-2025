@@ -9,6 +9,7 @@ import {
   NotepadText,
   Sparkles,
   Wand2,
+  FileDown,
 } from "lucide-react";
 import SentimentDistribution from "../components/charts/SentimentDistribution";
 import TopicDistribution from "../components/charts/TopicDistribution";
@@ -58,6 +59,9 @@ const Analysis = () => {
   const [selectedSentimentKey, setSelectedSentimentKey] = useState(null);
   const [selectedTopicKey, setSelectedTopicKey] = useState(null);
   const [selectedKeyword, setSelectedKeyword] = useState(null);
+  const [submittedText, setSubmittedText] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState("");
 
   const {
     setAnalysisData = () => {},
@@ -95,6 +99,8 @@ const Analysis = () => {
     setSelectedSentimentKey(null);
     setSelectedTopicKey(null);
     setSelectedKeyword(null);
+    setSubmittedText("");
+    setPdfError("");
   };
 
   const validateFile = (selectedFile) => {
@@ -114,6 +120,7 @@ const Analysis = () => {
     if (validateFile(selectedFile)) {
       setFile(selectedFile);
       setTextInput("");
+      setSubmittedText("");
     } else {
       event.target.value = "";
     }
@@ -127,11 +134,14 @@ const Analysis = () => {
     if (validateFile(droppedFile)) {
       setFile(droppedFile);
       setTextInput("");
+      setSubmittedText("");
     }
   };
 
   const handleSubmit = async () => {
-    if (!file && !textInput.trim()) {
+    const trimmedText = textInput.trim();
+
+    if (!file && !trimmedText) {
       setError("Please upload a file or enter text to analyze.");
       return;
     }
@@ -139,10 +149,12 @@ const Analysis = () => {
     setLoading(true);
     setAnalysis(null);
     setError("");
+    setPdfError("");
     setCurrentStep(0);
-  setSelectedSentimentKey(null);
-  setSelectedTopicKey(null);
-  setSelectedKeyword(null);
+    setSelectedSentimentKey(null);
+    setSelectedTopicKey(null);
+    setSelectedKeyword(null);
+    setSubmittedText(file ? "" : trimmedText);
 
     const scrollTimeout = setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -162,7 +174,7 @@ const Analysis = () => {
         response = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: textInput }),
+          body: JSON.stringify({ text: trimmedText }),
         });
       }
 
@@ -218,6 +230,71 @@ const Analysis = () => {
     setFile(null);
   };
 
+  const handleDownloadPdf = async () => {
+    if (!analysis) {
+      setPdfError("Run an analysis before downloading a report.");
+      return;
+    }
+
+    if (!file && !submittedText.trim()) {
+      setPdfError("No source content available for the report. Re-run the analysis first.");
+      return;
+    }
+
+    setPdfError("");
+    setDownloadingPdf(true);
+
+    try {
+      let response;
+      const defaultTitle =
+        (analysis?.primary_topic?.label ?? analysis?.topics?.[0]?.label ?? "Insight Report").toString();
+
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        response = await fetch(`${API_BASE}/report/pdf/file`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        response = await fetch(`${API_BASE}/report/pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: submittedText,
+            metadata: {
+              title: defaultTitle,
+              source: {
+                type: "text-input",
+              },
+            },
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.detail ?? data?.error ?? "Failed to generate report");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      anchor.href = downloadUrl;
+      anchor.download = `narrative-report-${timestamp}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error("PDF download failed", err);
+      setPdfError(err instanceof Error ? err.message : "Unable to download the PDF report.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const overallLabel =
     analysis?.sentiment?.overall?.label ?? analysis?.sentiment?.label ?? "--";
   const overallConfidence =
@@ -234,33 +311,6 @@ const Analysis = () => {
     ? sentimentDistribution.negative
     : 0;
 
-  const sentimentCards = [
-    {
-      key: "positive",
-      label: "Positive",
-      value: formatPercentage(positiveShare),
-      description: "The text contains positive expressions or praise.",
-      className:
-        "bg-emerald-500/10 border border-emerald-400/40 text-emerald-200",
-    },
-    {
-      key: "neutral",
-      label: "Neutral",
-      value: formatPercentage(neutralShare),
-      description: "The text is mostly factual or lacks emotional tone.",
-      className:
-        "bg-amber-500/10 border border-amber-400/40 text-amber-200",
-    },
-    {
-      key: "negative",
-      label: "Negative",
-      value: formatPercentage(negativeShare),
-      description: "The text mentions complaints or dissatisfaction.",
-      className:
-        "bg-rose-500/10 border border-rose-400/40 text-rose-200",
-    },
-  ];
-
   const emojiMap = {
     positive: "😄",
     neutral: "😐",
@@ -269,6 +319,7 @@ const Analysis = () => {
   const overallEmoji = emojiMap[String(overallLabel).toLowerCase()] ?? "🤔";
   const overallConfidencePercent =
     overallConfidence != null ? formatPercentage(overallConfidence) : "--";
+  const hasSourceForPdf = Boolean(file || submittedText.trim());
 
   const topics = Array.isArray(analysis?.topics) ? analysis.topics : [];
   const primaryTopic =
@@ -424,86 +475,120 @@ const Analysis = () => {
         <div ref={resultRef} className="space-y-6">
           {analysis && !loading && (
             <div className="flex flex-col gap-6">
+              <div className="p-5 bg-white/10 rounded-xl border border-white/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm text-white/70">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span>Export the current analysis as a polished PDF report.</span>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-2">
+                  {pdfError && <p className="text-xs text-red-400">{pdfError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={!hasSourceForPdf || downloadingPdf}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {downloadingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                    {downloadingPdf ? "Preparing PDF..." : "Download report"}
+                  </button>
+                </div>
+              </div>
+
               <div className="p-5 bg-white/10 rounded-xl border border-white/20 flex flex-col gap-5">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold text-primary text-lg">Sentiment Analysis</h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {sentimentCards.map((card) => (
-                    <div
-                      key={card.key}
-                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur transition ring-0 ${
-                        card.className
-                      } ${
-                        selectedSentimentKey === card.key
-                          ? "ring-2 ring-offset-2 ring-offset-black/40 ring-primary/70"
-                          : "hover:ring-1 hover:ring-primary/40"
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedSentimentKey(card.key)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedSentimentKey(card.key);
-                        }
-                      }}
-                    >
-                      <p className="text-xs uppercase tracking-wide text-white/70">{card.label}</p>
-                      <p className="text-3xl font-semibold mt-2 text-white">{card.value}</p>
-                      <p className="text-xs mt-3 text-white/70 leading-snug">{card.description}</p>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,260px)_1fr]">
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/15 bg-black/40 px-5 py-6 text-white">
+                      <p className="text-[11px] uppercase tracking-[0.35em] text-white/50">Dominant sentiment</p>
+                      <div className="mt-4 flex items-center gap-3">
+                        <span className="text-4xl" role="img" aria-label="overall sentiment emoji">
+                          {overallEmoji}
+                        </span>
+                        <div>
+                          <p className="text-2xl font-semibold uppercase leading-tight text-white">
+                            {overallLabel || "--"}
+                          </p>
+                          <p className="text-sm text-white/60">{overallConfidencePercent} confidence</p>
+                          {overallProbability != null && (
+                            <p className="text-xs text-white/50 mt-1">
+                              Positive probability {formatPercentage(overallProbability)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-2 text-sm text-white/70">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /> Positive
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(positiveShare)}</span>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Neutral
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(neutralShare)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-rose-400" /> Negative
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(negativeShare)}</span>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="bg-slate-900/50 border border-white/10 rounded-xl p-5">
-                  <h4 className="text-sm uppercase tracking-wide text-white/60 text-center mb-4">
-                    Sentiment Distribution
-                  </h4>
-                  <SentimentDistribution
-                    distribution={sentimentDistribution}
-                    overallLabel={overallLabel}
-                    selectedKey={selectedSentimentKey}
-                    onSegmentSelect={setSelectedSentimentKey}
-                  />
-                </div>
-
-                <div className="bg-black/40 border border-white/10 rounded-xl p-5 text-center">
-                  <p className="text-xs uppercase tracking-wide text-white/60">Overall Sentiment</p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <span className="text-3xl font-semibold text-white">{overallLabel.toUpperCase()}</span>
-                    <span className="text-3xl" role="img" aria-label="overall sentiment emoji">
-                      {overallEmoji}
-                    </span>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-white/70">
+                      <p className="text-[11px] uppercase tracking-[0.35em] text-white/50 mb-3">Model breakdown</p>
+                      <ul className="space-y-2">
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">Rule-based</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.rule_based?.polarity)} polarity · {formatProbability(analysis.sentiment?.rule_based?.subjectivity)} subjectivity
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">ML model</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.ml?.probability)} · {analysis.sentiment?.ml?.label ?? "--"}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">LSTM</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.dl?.probability)} · {analysis.sentiment?.dl?.label ?? "--"}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">Transformer</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.transformer?.probability)} · {analysis.sentiment?.transformer?.label ?? "--"}
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-300 mt-2">
-                    {overallConfidencePercent} confidence
-                  </p>
-                  {overallProbability != null && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Combined positive probability: {formatPercentage(overallProbability)}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-3">
-                    This is the dominant sentiment based on the ensemble analysis across rule-based, ML, LSTM, and transformer models.
-                  </p>
-                </div>
 
-                <div className="text-xs text-gray-400 space-y-1 border-t border-white/10 pt-4">
-                  <p>
-                    Rule-based polarity {formatProbability(analysis.sentiment?.rule_based?.polarity)}, subjectivity {formatProbability(analysis.sentiment?.rule_based?.subjectivity)}
-                  </p>
-                  <p>
-                    ML probability: {formatProbability(analysis.sentiment?.ml?.probability)} ({analysis.sentiment?.ml?.label ?? "--"})
-                  </p>
-                  <p>
-                    LSTM probability: {formatProbability(analysis.sentiment?.dl?.probability)} ({analysis.sentiment?.dl?.label ?? "--"})
-                  </p>
-                  <p>
-                    Transformer probability: {formatProbability(analysis.sentiment?.transformer?.probability)} ({analysis.sentiment?.transformer?.label ?? "--"})
-                  </p>
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5">
+                    <h4 className="text-sm uppercase tracking-[0.35em] text-white/50 text-center mb-4">
+                      Sentiment distribution
+                    </h4>
+                    <SentimentDistribution
+                      distribution={sentimentDistribution}
+                      overallLabel={overallLabel}
+                      selectedKey={selectedSentimentKey}
+                      onSegmentSelect={setSelectedSentimentKey}
+                    />
+                  </div>
                 </div>
               </div>
 

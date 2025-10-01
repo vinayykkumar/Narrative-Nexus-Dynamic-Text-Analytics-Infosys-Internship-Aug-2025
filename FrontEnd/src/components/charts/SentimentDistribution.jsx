@@ -81,10 +81,7 @@ const SentimentDistribution = ({
       responsive: true,
       plugins: {
         legend: {
-          labels: {
-            color: "#e5e7eb",
-            font: { size: 13 },
-          },
+          display: false,
         },
         tooltip: {
           callbacks: {
@@ -99,7 +96,7 @@ const SentimentDistribution = ({
       layout: {
         padding: 8,
       },
-      cutout: "70%",
+  cutout: "78%",
       onClick: (_evt, elements) => {
         if (!onSegmentSelect || !elements?.length) return;
         const index = elements[0].index;
@@ -120,73 +117,114 @@ const SentimentDistribution = ({
     return keys.map((key) => {
       const percent = Math.max(0, Math.min(1, Number(normalisedDistribution?.[key] ?? 0)));
       const label = key.charAt(0).toUpperCase() + key.slice(1);
+      const iconMap = {
+        positive: "😄",
+        neutral: "😐",
+        negative: "😟",
+      };
+      const descriptionMap = {
+        positive: "Optimistic cues and affirmative language appear often.",
+        neutral: "Balanced, factual passages with limited emotional tone.",
+        negative: "Critical wording or dissatisfaction signals are detected.",
+      };
       return {
         key,
         label,
         percent,
         color: SENTIMENT_COLORS[key].border,
+        icon: iconMap[key],
+        description: descriptionMap[key],
       };
     });
   }, [normalisedDistribution]);
 
+  const sentimentMetrics = useMemo(() => {
+    const positive = normalisedDistribution?.positive ?? 0;
+    const neutral = normalisedDistribution?.neutral ?? 0;
+    const negative = normalisedDistribution?.negative ?? 0;
+
+    const polarityTilt = Math.max(0, Math.min(1, (positive - negative + 1) / 2));
+    const balance = 1 - Math.min(1, Math.abs(neutral - 1 / 3) * 1.5);
+
+    const tiltNarrative =
+      polarityTilt > 0.66
+        ? "Clearly skewed positive"
+        : polarityTilt < 0.4
+        ? "Leaning negative"
+        : "Fairly balanced";
+
+    const balanceNarrative =
+      balance > 0.7
+        ? "Sentiment spread is stable"
+        : balance < 0.45
+        ? "Highly polarized"
+        : "Moderately varied";
+
+    return {
+      polarityTilt,
+      balance,
+      tiltNarrative,
+      balanceNarrative,
+    };
+  }, [normalisedDistribution]);
+
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,220px)_1fr] lg:items-center">
-      <div className="relative h-56 w-full mx-auto">
-        <Doughnut data={chartData} options={options} />
-        {centerLabel && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-[10px] tracking-[0.4em] text-gray-400 uppercase">Dominant</span>
-            <span className="text-xl font-semibold text-white">{centerLabel}</span>
-          </div>
-        )}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,260px)_1fr] lg:items-start">
+      <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6 shadow-lg shadow-black/40">
+        <div className="relative mx-auto h-52 w-52 max-w-full">
+          <Doughnut data={chartData} options={options} />
+          {centerLabel && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
+              <span className="text-[11px] uppercase tracking-[0.4em] text-white/40">Dominant</span>
+              <span className="mt-1 text-xl font-semibold">{centerLabel}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-3 text-xs text-white/60">
+          {sentimentSummaries.map((item) => (
+            <div key={`${item.key}-chip`} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center">
+              <div className="mx-auto mb-2 h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+              <p className="text-[11px] uppercase tracking-wide text-white/50">{item.label}</p>
+              <p className="mt-1 text-sm font-semibold text-white">{(item.percent * 100).toFixed(0)}%</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3">
         {sentimentSummaries.map((item) => {
-          const isActive = selectedKey && selectedKey === item.key;
+          const isActive = selectedKey === item.key;
           return (
             <button
               type="button"
               key={item.key}
+              aria-pressed={isActive}
               onClick={() => onSegmentSelect?.(item.key)}
-              className={`w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
-                isActive
-                  ? "border-white/60 bg-white/10 shadow-lg"
-                  : "border-white/10 bg-slate-900/40 hover:border-white/40"
+              className={`w-full rounded-2xl border px-5 py-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${
+                isActive ? "border-indigo-300 bg-indigo-500/20" : "border-white/10 bg-white/5 hover:border-white/30"
               }`}
             >
-              <div className="flex items-center justify-between text-sm text-white/70">
-                <span className="font-medium text-white">{item.label}</span>
-                <span className="text-xs">{(item.percent * 100).toFixed(1)}%</span>
+              <div className="flex items-start justify-between gap-3 text-white">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl" aria-hidden>{item.icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-white/80">{item.label}</p>
+                    <p className="text-xs text-white/60">{item.description}</p>
+                  </div>
+                </div>
+                <span className="text-base font-semibold text-white">{(item.percent * 100).toFixed(1)}%</span>
               </div>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min(item.percent * 100, 100)}%`,
-                    background: item.color,
-                  }}
-                />
-              </div>
-              {selectedKey && selectedKey === item.key ? (
-                <p className="mt-2 text-[11px] text-indigo-200 uppercase tracking-wide">
-                  Focused
-                </p>
-              ) : (
-                <p className="mt-2 text-[11px] text-white/50">
-                  Click to spotlight {item.label.toLowerCase()} mentions
-                </p>
-              )}
             </button>
           );
         })}
-      </div>
 
-      {selectedKey && (
-        <div className="md:col-span-2 text-center text-sm text-gray-300">
-          Highlighting <span className="font-semibold text-white">{selectedKey}</span> segment
-        </div>
-      )}
+        {selectedKey && (
+          <p className="rounded-2xl border border-indigo-300/40 bg-indigo-400/10 px-5 py-3 text-sm text-indigo-100">
+            Spotlighting <span className="font-semibold capitalize">{selectedKey}</span> signals across the analysis.
+          </p>
+        )}
+      </div>
     </div>
   );
 };

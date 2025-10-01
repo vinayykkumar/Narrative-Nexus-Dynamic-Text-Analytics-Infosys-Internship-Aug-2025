@@ -890,10 +890,45 @@ def generate_insights(
     score = sentiment.get("score")
 
     suggestions: List[str] = []
-    if label == "NEGATIVE" or (isinstance(score, (int, float)) and score < 0.6):
-        suggestions.append("Investigate causes of negative sentiment, prioritize frequently mentioned terms.")
+    score_value = score if isinstance(score, (int, float)) else None
+
+    if label == "NEGATIVE" or (score_value is not None and score_value < 0.45):
+        suggestions.append(
+            "Investigate pain points driving negative sentiment and prioritise remediation for the most cited issues in your narrative."
+        )
+    elif label == "NEUTRAL" or (score_value is not None and 0.45 <= score_value <= 0.65):
+        suggestions.append(
+            "Engage with the highlighted audience segments to clarify needs; transform neutral feedback into actionable direction for future messaging."
+        )
     else:
-        suggestions.append("Leverage positive trends; identify frequently mentioned strengths for promotion.")
+        suggestions.append(
+            "Amplify the positive narratives in your communications and spotlight frequently mentioned strengths to reinforce brand momentum."
+        )
+
+    if primary_topic:
+        topic_label = primary_topic.get("label") or CATEGORY_DISPLAY.get(
+            primary_topic.get("category_key", "other"),
+            "Key Theme",
+        )
+        top_keywords = list(primary_topic.get("keywords", [])[:4])
+        keyword_text = ", ".join(top_keywords)
+        if top_keywords:
+            suggestions.append(
+                f"Develop targeted initiatives for your {topic_label.lower()} strategy by weaving in recurring signals such as {keyword_text}."
+            )
+        else:
+            suggestions.append(
+                f"Build a focused response plan for your {topic_label.lower()} theme highlighted in the analysis."
+            )
+
+    if keywords_with_scores:
+        surfaced_terms = ", ".join(item["term"] for item in keywords_with_scores[:5])
+        suggestions.append(
+            f"Track emerging terms ({surfaced_terms}) in upcoming narratives so you can catch shifts early and adjust your messaging."
+        )
+
+    if not suggestions:
+        suggestions.append("Continue monitoring sentiment and topic signals to surface actionable recommendations.")
 
     return {
         "extractive_summary": extractive,
