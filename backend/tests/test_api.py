@@ -78,3 +78,26 @@ async def test_report_endpoint_returns_markdown(async_client):
     assert "recommendations" in report
     assert "raw_analysis" in report
     assert isinstance(payload["markdown"], str) and payload["markdown"].strip()
+
+
+async def test_report_pdf_endpoint_returns_pdf(async_client):
+    response = await async_client.post(
+        "/report/pdf",
+        json={
+            "text": "Narrative analysis transforms text into insights in seconds.",
+            "metadata": {"title": "Insight Sample"},
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    content_disposition = response.headers.get("content-disposition", "")
+    assert "attachment" in content_disposition
+    assert response.content[:4] == b"%PDF"
+
+
+async def test_report_pdf_file_endpoint_accepts_upload(async_client):
+    files = {"file": ("example.txt", b"AI narratives guide business actions", "text/plain")}
+    response = await async_client.post("/report/pdf/file", files=files)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content[:4] == b"%PDF"

@@ -46,15 +46,18 @@ const SentimentDistribution = ({
 
   const chartData = useMemo(() => {
     const keys = ["positive", "neutral", "negative"];
-    const data = keys.map((key) => Math.max(0, normalisedDistribution?.[key] ?? 0));
+    const data = keys.map((key) => Number(normalisedDistribution?.[key] ?? 0));
+    const backgroundColor = keys.map((key) => SENTIMENT_COLORS[key].background);
+    const borderColor = keys.map((key) => SENTIMENT_COLORS[key].border);
+
     return {
       labels: ["Positive", "Neutral", "Negative"],
       datasets: [
         {
           label: "Sentiment Share",
           data,
-          backgroundColor: keys.map((k) => SENTIMENT_COLORS[k].background),
-          borderColor: keys.map((k) => SENTIMENT_COLORS[k].border),
+          backgroundColor,
+          borderColor,
           borderWidth: 2,
           hoverBorderWidth: 3,
           spacing: 4,
@@ -69,12 +72,7 @@ const SentimentDistribution = ({
       maintainAspectRatio: false,
       responsive: true,
       plugins: {
-        legend: {
-          labels: {
-            color: "#e5e7eb",
-            font: { size: 13 },
-          },
-        },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: (context) => {
@@ -86,7 +84,7 @@ const SentimentDistribution = ({
         },
       },
       layout: { padding: 8 },
-      cutout: "70%",
+      cutout: "78%",
       onClick: (_evt, elements) => {
         if (!onSegmentSelect || !elements?.length) return;
         const index = elements[0].index;
@@ -97,88 +95,118 @@ const SentimentDistribution = ({
     [onSegmentSelect]
   );
 
-  const centerLabel = useMemo(() => {
-    if (!overallLabel) return null;
-    return String(overallLabel).toUpperCase();
-  }, [overallLabel]);
+  const centerLabel = useMemo(
+    () => (overallLabel ? String(overallLabel).toUpperCase() : null),
+    [overallLabel]
+  );
 
   const sentimentSummaries = useMemo(() => {
     const keys = ["positive", "neutral", "negative"];
     return keys.map((key) => {
-      const percent = Math.max(0, Math.min(1, Number(normalisedDistribution?.[key] ?? 0)));
+      const percent = Math.max(
+        0,
+        Math.min(1, Number(normalisedDistribution?.[key] ?? 0))
+      );
+      const label = key.charAt(0).toUpperCase() + key.slice(1);
+      const iconMap = { positive: "😄", neutral: "😐", negative: "😟" };
+      const descriptionMap = {
+        positive: "Optimistic cues and affirmative language appear often.",
+        neutral: "Balanced, factual passages with limited emotional tone.",
+        negative: "Critical wording or dissatisfaction signals are detected.",
+      };
       return {
         key,
-        label: key.charAt(0).toUpperCase() + key.slice(1),
+        label,
         percent,
         color: SENTIMENT_COLORS[key].border,
+        icon: iconMap[key],
+        description: descriptionMap[key],
       };
     });
   }, [normalisedDistribution]);
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,320px)_1fr] lg:items-center">
-      {/* Chart */}
-      <div className="relative w-full max-w-xs md:max-w-none h-60 sm:h-64 md:h-72 mx-auto">
-        <Doughnut data={chartData} options={options} />
-        {centerLabel && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-[10px] tracking-[0.3em] text-gray-300 uppercase pt-10">
-              Dominant
-            </span>
-            <span className="text-lg sm:text-xl md:text-2xl font-semibold text-white">
-              {centerLabel}
-            </span>
-          </div>
-        )}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,300px)_1fr] lg:items-start">
+      {/* Chart Card */}
+      <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6 shadow-lg shadow-black/40">
+        <div className="relative mx-auto w-full max-w-[14rem] aspect-square">
+          <Doughnut data={chartData} options={options} />
+          {centerLabel && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
+              <span className="text-[11px] uppercase tracking-[0.4em] text-white/40">
+                Dominant
+              </span>
+              <span className="mt-1 text-xl font-semibold">{centerLabel}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Chips now wrap properly */}
+        <div className="mt-6 grid grid-cols-3 gap-3 text-xs text-white/60 sm:grid-cols-3 xs:grid-cols-2">
+          {sentimentSummaries.map((item) => (
+            <div
+              key={`${item.key}-chip`}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center"
+            >
+              <div
+                className="mx-auto mb-2 h-2 w-2 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <p className="text-[11px] uppercase tracking-wide text-white/50">
+                {item.label}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-white">
+                {(item.percent * 100).toFixed(0)}%
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Summaries */}
+      {/* Sentiment Details */}
       <div className="space-y-3">
         {sentimentSummaries.map((item) => {
-          const isActive = selectedKey && selectedKey === item.key;
+          const isActive = selectedKey === item.key;
           return (
             <button
-              key={item.key}
               type="button"
+              key={item.key}
+              aria-pressed={isActive}
               onClick={() => onSegmentSelect?.(item.key)}
-              className={`w-full rounded-xl border px-4 py-3 text-left transition 
-                ${isActive
-                  ? "border-white/60 bg-white/10 shadow-lg"
-                  : "border-white/10 bg-slate-900/40 hover:border-white/40"
-                }`}
+              className={`w-full rounded-2xl border px-5 py-4 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 ${
+                isActive
+                  ? "border-indigo-300 bg-indigo-500/20"
+                  : "border-white/10 bg-white/5 hover:border-white/30"
+              }`}
             >
-              <div className="flex items-center justify-between text-sm text-white/70">
-                <span className="font-medium text-white">{item.label}</span>
-                <span className="text-xs">{(item.percent * 100).toFixed(1)}%</span>
+              <div className="flex items-start justify-between gap-3 text-white">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl" aria-hidden>
+                    {item.icon}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                      {item.label}
+                    </p>
+                    <p className="text-xs text-white/60">{item.description}</p>
+                  </div>
+                </div>
+                <span className="text-base font-semibold text-white">
+                  {(item.percent * 100).toFixed(1)}%
+                </span>
               </div>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min(item.percent * 100, 100)}%`,
-                    background: item.color,
-                  }}
-                />
-              </div>
-              {isActive ? (
-                <p className="mt-2 text-[11px] text-indigo-200 uppercase tracking-wide">
-                  Focused
-                </p>
-              ) : (
-                <p className="mt-2 text-[11px] text-white/50">
-                  Click to spotlight {item.label.toLowerCase()} mentions
-                </p>
-              )}
             </button>
           );
         })}
-      </div>
 
-      {selectedKey && (
-        <div className="md:col-span-2 text-center text-sm text-gray-300">
-          Highlighting <span className="font-semibold text-white">{selectedKey}</span> segment
-        </div>
-      )}
+        {selectedKey && (
+          <p className="rounded-2xl border border-indigo-300/40 bg-indigo-400/10 px-5 py-3 text-sm text-indigo-100">
+            Spotlighting{" "}
+            <span className="font-semibold capitalize">{selectedKey}</span>{" "}
+            signals across the analysis.
+          </p>
+        )}
+      </div>
     </div>
   );
 };

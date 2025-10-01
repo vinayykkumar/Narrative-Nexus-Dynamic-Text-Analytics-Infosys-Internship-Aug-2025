@@ -30,3 +30,5 @@ PyPDF2
 # Utils
 tqdm
 python-dotenv
+
+reportlab

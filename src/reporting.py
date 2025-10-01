@@ -9,11 +9,25 @@ shared with stakeholders or archived in the ``reports`` directory.
 
 from __future__ import annotations
 
+import io
 import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import (
+    Paragraph,
+    Preformatted,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 _Number = Optional[float]
 
@@ -287,6 +301,240 @@ def report_to_markdown(report: Dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def report_to_pdf(report: Dict[str, Any], *, title: Optional[str] = None) -> bytes:
+    """Render a report dictionary to a formatted PDF document."""
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=54,
+        rightMargin=54,
+        topMargin=72,
+        bottomMargin=54,
+        title=title or "Narrative Nexus Insight Report",
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "ReportTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=26,
+        textColor=colors.HexColor("#312e81"),
+        alignment=TA_LEFT,
+    )
+    heading_style = ParagraphStyle(
+        "SectionHeading",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        leading=20,
+        textColor=colors.HexColor("#4338ca"),
+        spaceBefore=12,
+        spaceAfter=6,
+    )
+    normal_style = ParagraphStyle(
+        "BodyText",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=11,
+        leading=16,
+    )
+    muted_style = ParagraphStyle(
+        "Muted",
+        parent=normal_style,
+        textColor=colors.grey,
+        fontSize=10,
+    )
+    bullet_style = ParagraphStyle(
+        "Bullet",
+        parent=normal_style,
+        leftIndent=18,
+        bulletIndent=9,
+        bulletFontName="Helvetica",
+        bulletFontSize=10,
+    )
+    code_style = ParagraphStyle(
+        "Code",
+        parent=normal_style,
+        fontName="Courier",
+        fontSize=9,
+        leading=13,
+    )
+
+    doc_title = title or "Narrative Nexus Insight Report"
+    generated_at = report.get("generated_at")
+
+    elements: List[Any] = []
+    elements.append(Paragraph(doc_title, title_style))
+    if generated_at:
+        elements.append(Paragraph(f"Generated on {generated_at}", muted_style))
+    elements.append(Spacer(1, 16))
+
+    metadata = report.get("metadata", {})
+    text_stats = metadata.get("text_statistics", {})
+    if text_stats:
+        elements.append(Paragraph("Text Overview", heading_style))
+        table_data = [
+            ["Metric", "Value"],
+            ["Word count", str(text_stats.get("word_count", "--"))],
+            ["Sentence count", str(text_stats.get("sentence_count", "--"))],
+            [
+                "Estimated reading time",
+                f"{text_stats.get('estimated_reading_time_minutes', '--')} minutes",
+            ],
+            ["Average sentence length", str(text_stats.get("average_sentence_length", "--"))],
+        ]
+        overview_table = Table(table_data, colWidths=[200, 220])
+        overview_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef2ff")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#312e81")),
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#c7d2fe")),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ]
+            )
+        )
+        elements.append(overview_table)
+
+    exec_summary = report.get("executive_summary", {})
+    highlights = exec_summary.get("highlights", [])
+    if highlights:
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph("Executive Summary", heading_style))
+        for item in highlights:
+            elements.append(Paragraph(item, bullet_style, bulletText="•"))
+
+    sentiment = report.get("sentiment_overview", {})
+    distribution = sentiment.get("distribution", {})
+    if distribution:
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph("Sentiment Overview", heading_style))
+        dominant = sentiment.get("dominant_label")
+        if dominant:
+            elements.append(
+                Paragraph(
+                    f"Dominant sentiment: <b>{str(dominant).title()}</b>", normal_style
+                )
+            )
+
+        sentiment_table_data = [["Sentiment", "Share", "Model confidence"]]
+        confidence = sentiment.get("confidence")
+        confidence_pretty = f"{confidence:.2f}" if isinstance(confidence, (float, int)) else "--"
+        for label in ("positive", "neutral", "negative"):
+            row = distribution.get(label, {})
+            sentiment_table_data.append(
+                [
+                    label.title(),
+                    row.get("percentage", "0%"),
+                    confidence_pretty,
+                ]
+            )
+
+        sentiment_table = Table(
+            sentiment_table_data,
+            colWidths=[140, 120, 120],
+        )
+        sentiment_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#312e81")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#c7d2fe")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f3ff")]),
+                ]
+            )
+        )
+        elements.append(sentiment_table)
+
+    topics = report.get("topic_intelligence", {})
+    top_topics = topics.get("top_topics", [])
+    if top_topics:
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph("Topic Highlights", heading_style))
+        for topic in top_topics:
+            label = topic.get("label", "Topic")
+            share = topic.get("share_pretty", "0%")
+            keywords = ", ".join(topic.get("keywords", []))
+            body = f"<b>{label}</b> ({share})"
+            if keywords:
+                body += f" — {keywords}"
+            elements.append(Paragraph(body, bullet_style, bulletText="•"))
+
+    narratives = topics.get("narratives", [])
+    if narratives:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Topic Narratives", heading_style))
+        for narrative in narratives:
+            title_text = narrative.get("title", "Narrative")
+            sentiment_label = narrative.get("sentiment_label", "neutral")
+            snippet = narrative.get("snippet", "")
+            content = f"<b>{title_text}</b> ({sentiment_label}) — {snippet}"
+            elements.append(Paragraph(content, bullet_style, bulletText="•"))
+
+    keywords_section = report.get("keyword_spotlight", {})
+    keywords = keywords_section.get("keywords", [])
+    if keywords:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Keyword Spotlight", heading_style))
+        preview = ", ".join(keyword.get("term") for keyword in keywords[:25])
+        elements.append(Paragraph(preview, normal_style))
+
+    recommendations = report.get("recommendations", [])
+    if recommendations:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Recommendations", heading_style))
+        for rec in recommendations:
+            elements.append(Paragraph(rec, bullet_style, bulletText="•"))
+    else:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Recommendations", heading_style))
+        elements.append(
+            Paragraph(
+                "No specific recommendations were generated for this analysis. Continue monitoring new inputs for emerging actions.",
+                normal_style,
+            )
+        )
+
+    evaluation = metadata.get("evaluation_metrics")
+    if evaluation:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Model Evaluation Snapshot", heading_style))
+        formatted = json.dumps(evaluation, indent=2, ensure_ascii=False)
+        elements.append(Preformatted(formatted, code_style))
+
+    def _header_footer(canvas_obj, doc_obj):
+        canvas_obj.saveState()
+        width, height = doc_obj.pagesize
+        canvas_obj.setFont("Helvetica", 9)
+        canvas_obj.setFillColor(colors.HexColor("#4338ca"))
+        canvas_obj.drawString(doc_obj.leftMargin, height - doc_obj.topMargin + 30, "NarrativeNexus")
+        canvas_obj.setFillColor(colors.grey)
+        canvas_obj.drawRightString(
+            width - doc_obj.rightMargin,
+            doc_obj.bottomMargin - 20,
+            f"Page {canvas_obj.getPageNumber()}",
+        )
+        canvas_obj.restoreState()
+
+    doc.build(elements, onFirstPage=_header_footer, onLaterPages=_header_footer)
+
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def save_report(report: Dict[str, Any], output_path: Path | str, format: Optional[str] = None) -> Path:
     """Persist a report to disk in JSON or Markdown format."""
 
@@ -312,4 +560,4 @@ def save_report(report: Dict[str, Any], output_path: Path | str, format: Optiona
     return path
 
 
-__all__ = ["generate_report", "report_to_markdown", "save_report"]
+__all__ = ["generate_report", "report_to_markdown", "report_to_pdf", "save_report"]

@@ -5,12 +5,14 @@ import {
   FilePlusIcon,
   Folder,
   Loader2,
-  LucideLightbulb,
   MessageSquare,
   NotepadText,
-  NotepadTextDashedIcon,
   Sparkles,
   Wand2,
+  FileDown,
+  Circle,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 import SentimentDistribution from "../components/charts/SentimentDistribution";
 import TopicDistribution from "../components/charts/TopicDistribution";
@@ -60,6 +62,9 @@ const Analysis = () => {
   const [selectedSentimentKey, setSelectedSentimentKey] = useState(null);
   const [selectedTopicKey, setSelectedTopicKey] = useState(null);
   const [selectedKeyword, setSelectedKeyword] = useState(null);
+  const [submittedText, setSubmittedText] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState("");
 
   const {
     setAnalysisData = () => {},
@@ -97,6 +102,8 @@ const Analysis = () => {
     setSelectedSentimentKey(null);
     setSelectedTopicKey(null);
     setSelectedKeyword(null);
+    setSubmittedText("");
+    setPdfError("");
   };
 
   const validateFile = (selectedFile) => {
@@ -116,6 +123,7 @@ const Analysis = () => {
     if (validateFile(selectedFile)) {
       setFile(selectedFile);
       setTextInput("");
+      setSubmittedText("");
     } else {
       event.target.value = "";
     }
@@ -129,11 +137,14 @@ const Analysis = () => {
     if (validateFile(droppedFile)) {
       setFile(droppedFile);
       setTextInput("");
+      setSubmittedText("");
     }
   };
 
   const handleSubmit = async () => {
-    if (!file && !textInput.trim()) {
+    const trimmedText = textInput.trim();
+
+    if (!file && !trimmedText) {
       setError("Please upload a file or enter text to analyze.");
       return;
     }
@@ -141,10 +152,12 @@ const Analysis = () => {
     setLoading(true);
     setAnalysis(null);
     setError("");
+    setPdfError("");
     setCurrentStep(0);
-  setSelectedSentimentKey(null);
-  setSelectedTopicKey(null);
-  setSelectedKeyword(null);
+    setSelectedSentimentKey(null);
+    setSelectedTopicKey(null);
+    setSelectedKeyword(null);
+    setSubmittedText(file ? "" : trimmedText);
 
     const scrollTimeout = setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -164,7 +177,7 @@ const Analysis = () => {
         response = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: textInput }),
+          body: JSON.stringify({ text: trimmedText }),
         });
       }
 
@@ -220,6 +233,71 @@ const Analysis = () => {
     setFile(null);
   };
 
+  const handleDownloadPdf = async () => {
+    if (!analysis) {
+      setPdfError("Run an analysis before downloading a report.");
+      return;
+    }
+
+    if (!file && !submittedText.trim()) {
+      setPdfError("No source content available for the report. Re-run the analysis first.");
+      return;
+    }
+
+    setPdfError("");
+    setDownloadingPdf(true);
+
+    try {
+      let response;
+      const defaultTitle =
+        (analysis?.primary_topic?.label ?? analysis?.topics?.[0]?.label ?? "Insight Report").toString();
+
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        response = await fetch(`${API_BASE}/report/pdf/file`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        response = await fetch(`${API_BASE}/report/pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: submittedText,
+            metadata: {
+              title: defaultTitle,
+              source: {
+                type: "text-input",
+              },
+            },
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.detail ?? data?.error ?? "Failed to generate report");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      anchor.href = downloadUrl;
+      anchor.download = `narrative-report-${timestamp}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error("PDF download failed", err);
+      setPdfError(err instanceof Error ? err.message : "Unable to download the PDF report.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const overallLabel =
     analysis?.sentiment?.overall?.label ?? analysis?.sentiment?.label ?? "--";
   const overallConfidence =
@@ -236,33 +314,6 @@ const Analysis = () => {
     ? sentimentDistribution.negative
     : 0;
 
-  const sentimentCards = [
-    {
-      key: "positive",
-      label: "Positive",
-      value: formatPercentage(positiveShare),
-      description: "The text contains positive expressions or praise.",
-      className:
-        "bg-emerald-500/10 border border-emerald-400/40 text-emerald-200",
-    },
-    {
-      key: "neutral",
-      label: "Neutral",
-      value: formatPercentage(neutralShare),
-      description: "The text is mostly factual or lacks emotional tone.",
-      className:
-        "bg-amber-500/10 border border-amber-400/40 text-amber-200",
-    },
-    {
-      key: "negative",
-      label: "Negative",
-      value: formatPercentage(negativeShare),
-      description: "The text mentions complaints or dissatisfaction.",
-      className:
-        "bg-rose-500/10 border border-rose-400/40 text-rose-200",
-    },
-  ];
-
   const emojiMap = {
     positive: "😄",
     neutral: "😐",
@@ -271,6 +322,7 @@ const Analysis = () => {
   const overallEmoji = emojiMap[String(overallLabel).toLowerCase()] ?? "🤔";
   const overallConfidencePercent =
     overallConfidence != null ? formatPercentage(overallConfidence) : "--";
+  const hasSourceForPdf = Boolean(file || submittedText.trim());
 
   const topics = Array.isArray(analysis?.topics) ? analysis.topics : [];
   const primaryTopic =
@@ -375,15 +427,15 @@ const Analysis = () => {
               onClick={resetState}
               className="px-6 py-2 border border-white/30 text-gray-300 rounded-full hover:bg-white/10 transition"
             >
-              Reset
+              Cancel
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-primary text-white rounded-full hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />} {loading ? "Analyzing..." : "Analyze"}
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />} {loading ? "Analyzing" : "Analyze"}
             </button>
           </div>
 
@@ -391,48 +443,95 @@ const Analysis = () => {
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-xl py-10 px-6 space-y-5">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <div className="text-gray-300 text-center space-y-2">
-              <p className="font-medium">Analyzing data...</p>
-              <ul className="list-disc list-inside text-left space-y-1 text-gray-400">
-                {STEPS.map((step, idx) => (
-                  <li
-                    key={step}
-                    className={
-                      idx === currentStep
-                        ? "text-blue-400 font-semibold"
-                        : idx < currentStep
-                        ? "text-green-400"
-                        : "text-gray-500"
-                    }
-                  >
-                    {step}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="w-full max-w-md bg-gray-700 rounded-full h-2 overflow-hidden">
-              <div
-                className={`h-2 transition-all duration-500 ${
-                  currentStep + 1 === STEPS.length ? "bg-green-500" : "bg-blue-500"
-                }`}
-                style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
+  <div className="flex flex-col items-center justify-center bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-10 px-8 space-y-6 shadow-xl animate-fade-in">
+    {/* Spinning Loader with Glow */}
+    <div className="relative">
+      <Loader2 className="w-14 h-14 text-blue-400 animate-spin" />
+      <div className="absolute inset-0 rounded-full bg-blue-400/20 blur-xl animate-pulse"></div>
+    </div>
+
+    {/* Title + Steps */}
+    <div className="text-gray-200 text-center space-y-3">
+      <p className="font-semibold text-lg tracking-wide animate-pulse flex items-center justify-center gap-2">
+      Analyzing your text...
+      </p>
+      <ul className="space-y-2 text-sm text-left">
+        {STEPS.map((step, idx) => (
+          <li
+            key={step}
+            className={`flex items-center gap-2 transition ${
+              idx === currentStep
+                ? "text-blue-400 font-semibold"
+                : idx < currentStep
+                ? "text-green-400"
+                : "text-gray-500"
+            }`}
+          >
+            {idx < currentStep ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : idx === currentStep ? (
+              <Clock className="w-4 h-4 animate-pulse" />
+            ) : (
+              <Circle className="w-4 h-4" />
+            )}
+            {step}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    {/* Progress Bar */}
+    <div className="w-full max-w-md bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+      <div
+        className={`h-3 transition-all duration-500 bg-gradient-to-r ${
+          currentStep + 1 === STEPS.length
+            ? "from-green-400 to-green-500"
+            : "from-blue-400 to-indigo-500"
+        }`}
+        style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
+      />
+    </div>
+
+    {/* Optional Step Counter */}
+    <p className="text-xs text-gray-400 mt-2">
+      Step {currentStep + 1} of {STEPS.length}
+    </p>
+  </div>
+)}
+
 
         <div ref={resultRef} className="space-y-6">
           {analysis && !loading && (
             <div className="flex flex-col gap-6">
-            
+              <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm text-white/70">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span>Export the current analysis as a polished PDF report.</span>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-2">
+                  {pdfError && <p className="text-xs text-red-400">{pdfError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={!hasSourceForPdf || downloadingPdf}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {downloadingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileDown className="h-4 w-4" />
+                    )}
+                    {downloadingPdf ? "Preparing PDF..." : "Download report"}
+                  </button>
+                </div>
+              </div>
+
               <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
                 <div className="flex items-center gap-2 mb-3">
                   <Wand2 className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold text-primary text-lg">Topics</h3>
                 </div>
-                
+
                 {primaryTopic || topics.length > 0 ? (
                   <div className="space-y-6">
                     {primaryTopic && (
@@ -469,7 +568,7 @@ const Analysis = () => {
                       <div className="space-y-6">
                         <div className="flex flex-col gap-5 xl:flex-row">
                           <div className="xl:w-7/12 w-full space-y-5">
-                            <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                            <div className="rounded-2xl border border-white/10 bg-gradient-to-tr from-indigo-500/20 via-black to-purple-500/10 p-4">
                               <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-sm uppercase tracking-wide text-white/70">
                                   Theme Distribution
@@ -534,121 +633,131 @@ const Analysis = () => {
                   <h3 className="font-semibold text-primary text-lg">Sentiment Analysis</h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {sentimentCards.map((card) => (
-                    <div
-                      key={card.key}
-                      className={`rounded-xl px-5 py-4 shadow-sm backdrop-blur transition ring-0 ${
-                        card.className
-                      } ${
-                        selectedSentimentKey === card.key
-                          ? "ring-2 ring-offset-2 ring-offset-black/40 ring-primary/70"
-                          : "hover:ring-1 hover:ring-primary/40"
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedSentimentKey(card.key)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedSentimentKey(card.key);
-                        }
-                      }}
-                    >
-                      <p className="text-xs text-center uppercase tracking-wide text-white/70">{card.label}</p>
-                      <p className="text-3xl text-center font-semibold mt-2 text-white">{card.value}</p>
-                      <p className="text-xs text-center mt-3 text-white/70 leading-snug">{card.description}</p>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,260px)_1fr]">
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/15 bg-black/40 px-5 py-6 text-white">
+                      <p className="text-[11px] uppercase tracking-[0.35em] text-white/50">Dominant sentiment</p>
+                      <div className="mt-4 flex items-center gap-3">
+                        <span className="text-4xl" role="img" aria-label="overall sentiment emoji">
+                          {overallEmoji}
+                        </span>
+                        <div>
+                          <p className="text-2xl font-semibold uppercase leading-tight text-white">
+                            {overallLabel || "--"}
+                          </p>
+                          <p className="text-sm text-white/60">{overallConfidencePercent} confidence</p>
+                          {overallProbability != null && (
+                            <p className="text-xs text-white/50 mt-1">
+                              Positive probability {formatPercentage(overallProbability)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-2 text-sm text-white/70">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /> Positive
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(positiveShare)}</span>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Neutral
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(neutralShare)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-white/60">
+                            <span className="h-2.5 w-2.5 rounded-full bg-rose-400" /> Negative
+                          </span>
+                          <span className="font-medium text-white">{formatPercentage(negativeShare)}</span>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="bg-slate-900/50 border border-white/10 rounded-xl p-5">
-                  <h4 className="text-sm uppercase tracking-wide text-white/60 text-center mb-4">
-                    Sentiment Distribution
-                  </h4>
-                  <SentimentDistribution
-                    distribution={sentimentDistribution}
-                    overallLabel={overallLabel}
-                    selectedKey={selectedSentimentKey}
-                    onSegmentSelect={setSelectedSentimentKey}
-                  />
-                </div>
-
-                <div className="bg-black/40 border border-white/10 rounded-xl p-5 text-center">
-                  <p className="text-xs uppercase tracking-wide text-white/60">Overall Sentiment</p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <span className="text-3xl font-semibold text-white">{overallLabel.toUpperCase()}</span>
-                    <span className="text-3xl" role="img" aria-label="overall sentiment emoji">
-                      {overallEmoji}
-                    </span>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-white/70">
+                      <p className="text-[11px] uppercase tracking-[0.35em] text-white/50 mb-3">Model breakdown</p>
+                      <ul className="space-y-2">
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">Rule-based</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.rule_based?.polarity)} polarity · {formatProbability(analysis.sentiment?.rule_based?.subjectivity)} subjectivity
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">ML model</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.ml?.probability)} · {analysis.sentiment?.ml?.label ?? "--"}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">LSTM</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.dl?.probability)} · {analysis.sentiment?.dl?.label ?? "--"}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span className="text-white/60">Transformer</span>
+                          <span className="font-medium text-white">
+                            {formatProbability(analysis.sentiment?.transformer?.probability)} · {analysis.sentiment?.transformer?.label ?? "--"}
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-300 mt-2">
-                    {overallConfidencePercent} confidence
-                  </p>
-                  {overallProbability != null && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Combined positive probability: {formatPercentage(overallProbability)}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-3">
-                    This is the dominant sentiment based on the ensemble analysis across rule-based, ML, LSTM, and transformer models.
-                  </p>
-                </div>
 
-                <div className="text-xs text-gray-400 space-y-1 border-t border-white/10 pt-4">
-                  <p>
-                    Rule-based polarity {formatProbability(analysis.sentiment?.rule_based?.polarity)}, subjectivity {formatProbability(analysis.sentiment?.rule_based?.subjectivity)}
-                  </p>
-                  <p>
-                    ML probability: {formatProbability(analysis.sentiment?.ml?.probability)} ({analysis.sentiment?.ml?.label ?? "--"})
-                  </p>
-                  <p>
-                    LSTM probability: {formatProbability(analysis.sentiment?.dl?.probability)} ({analysis.sentiment?.dl?.label ?? "--"})
-                  </p>
-                  <p>
-                    Transformer probability: {formatProbability(analysis.sentiment?.transformer?.probability)} ({analysis.sentiment?.transformer?.label ?? "--"})
-                  </p>
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5">
+                    <h4 className="text-sm uppercase tracking-[0.35em] text-white/50 text-center mb-4">
+                      Sentiment distribution
+                    </h4>
+                    <SentimentDistribution
+                      distribution={sentimentDistribution}
+                      overallLabel={overallLabel}
+                      selectedKey={selectedSentimentKey}
+                      onSegmentSelect={setSelectedSentimentKey}
+                    />
+                  </div>
                 </div>
               </div>
 
               {(analysis.extractive_summary || analysis.abstractive_summary) && (
-  <div className="p-6 bg-gradient-to-br from-indigo-950/60 to-gray-900/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg">
-    <div className="flex items-center gap-3 mb-5">
-      <NotepadText className="w-6 h-6 text-primary drop-shadow" />
-      <h3 className="font-bold text-indigo-300 text-xl tracking-wide">Summarization</h3>
-    </div>
+                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <NotepadText className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-primary text-lg">Summarization</h3>
+                  </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {analysis.extractive_summary && (
-        <div className="p-5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-primary/30 text-white rounded-xl shadow-md hover:scale-[1.02] transition-transform duration-300">
-          <h3 className="font-semibold text-indigo-300 text-lg mb-3">
-            Extractive Summary
-          </h3>
-          <p className="text-gray-100 text-sm leading-relaxed">
-            {analysis.extractive_summary}
-          </p>
-        </div>
-      )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {analysis.extractive_summary && (
+                      <div className="p-5 bg-gradient-to-tr from-indigo-500/20 via-black to-purple-500/10 border border-primary/30 text-white rounded-xl shadow-md">
+                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
+                          Extractive Summary
+                        </h3>
+                        <p className="text-gray-200 text-sm whitespace-pre-line">
+                          {analysis.extractive_summary}
+                        </p>
+                      </div>
+                    )}
 
-      {analysis.abstractive_summary && (
-        <div className="p-5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white rounded-xl shadow-md hover:scale-[1.02] transition-transform duration-300">
-          <h3 className="font-semibold text-purple-300 text-lg mb-3">
-            Abstractive Summary
-          </h3>
-          <p className="text-gray-100 text-sm leading-relaxed">
-            {analysis.abstractive_summary}
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
+                    {analysis.abstractive_summary && (
+                      <div className="p-5 bg-gradient-to-tr from-indigo-500/20 via-black to-purple-500/10 border border-purple-400/30 text-white rounded-xl shadow-md ">
+                        <h3 className="font-semibold text-indigo-600 text-lg mb-3">
+                          Abstractive Summary
+                        </h3>
+                        <p className="text-gray-200 text-sm whitespace-pre-line">
+                          {analysis.abstractive_summary}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {keywordCloudWeighted.length > 0 && (
                 <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-primary text-lg flex gap-2"><NotepadTextDashedIcon/> Keyword Cloud</h3>
+                    <h3 className="font-semibold text-primary text-lg">Keyword Cloud</h3>
                     {selectedTopicDetails?.label && (
                       <span className="text-xs text-white/70">
                         Highlighting signals for {selectedTopicDetails.label}
@@ -666,20 +775,29 @@ const Analysis = () => {
               )}
 
               {analysis.suggestions && analysis.suggestions.length > 0 && (
-                <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20">
-                  <h3 className="font-semibold text-primary text-lg mb-3 flex gap-2"><LucideLightbulb/>Suggestions</h3>
-                  <ul className="list-disc list-inside text-gray-300 text-sm space-y-1">
-                    {analysis.suggestions.map((suggestion, idx) => (
-                      <li key={`${suggestion}-${idx}`}>{suggestion}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+  <div className="p-6 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg transition-transform">
+    <h3 className="font-bold text-primary text-xl mb-4 flex items-center gap-2">
+      💡 Suggestions
+    </h3>
+    <ul className="space-y-3">
+      {analysis.suggestions.map((suggestion, idx) => (
+        <li
+          key={`${suggestion}-${idx}`}
+          className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition"
+        >
+          <CheckCircle className="w-4 h-4 text-green-600 mt-1" />
+          <span className="text-gray-200 text-sm leading-relaxed">{suggestion}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
             </div>
           )}
 
           {!analysis && !loading && (
-            <div className="p-6 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-400 flex items-center gap-3">
+            <div className="p-6 bg-white/5 backdrop-blur border border-white/10 rounded-xl text-sm text-gray-400 flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-primary" />
               <p>
                 Submit text or upload a document to reveal sentiment, topic insights, summaries, and tailored suggestions.

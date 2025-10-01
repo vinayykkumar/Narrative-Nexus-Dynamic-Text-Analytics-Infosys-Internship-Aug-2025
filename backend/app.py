@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 import io
 import csv
+import re
+from datetime import datetime
 from docx import Document
 from PyPDF2 import PdfReader
 
@@ -19,7 +22,7 @@ from src.preprocessing import clean_text
 from src.sentiment import analyze_sentiment_text, load_sentiment_models, SentimentInferenceModels
 from src.summarization import extractive_summary, abstractive_summary
 from src.insights import TopicModels, load_models, get_topics_for_doc, generate_insights
-from src.reporting import generate_report, report_to_markdown
+from src.reporting import generate_report, report_to_markdown, report_to_pdf
 
 app = FastAPI(title="NarrativeNexus API")
 
@@ -45,6 +48,13 @@ class ReportIn(BaseModel):
     include_analysis: bool = False
     metadata: Optional[dict] = None
     evaluation: Optional[dict] = None
+
+
+def _safe_slug(value: Optional[str], fallback: str = "narrative-report") -> str:
+    if not value:
+        return fallback
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-")
+    return cleaned or fallback
 
 # -----------------------------
 # Startup: Load models
@@ -148,6 +158,40 @@ async def report(payload: ReportIn):
         response["analysis"] = insights
     return response
 
+
+@app.post("/report/pdf")
+async def report_pdf(payload: ReportIn):
+    txt = payload.text
+    if not txt.strip():
+        raise HTTPException(status_code=400, detail="Text is required to generate the report.")
+
+    cleaned = clean_text(txt)
+    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    insights = generate_insights(
+        txt,
+        sent,
+        topic_models=topic_models,
+        sentiment_models=sentiment_models,
+    )
+    report_payload = generate_report(
+        txt,
+        insights,
+        metadata=payload.metadata,
+        evaluation=payload.evaluation,
+    )
+
+    title = None
+    if isinstance(payload.metadata, dict):
+        source_title = payload.metadata.get("title") or payload.metadata.get("name")
+        if isinstance(source_title, str):
+            title = source_title.strip() or None
+
+    pdf_bytes = report_to_pdf(report_payload, title=title)
+    filename = f"{_safe_slug(title) if title else 'narrative-report'}-{datetime.utcnow():%Y%m%d%H%M%S}.pdf"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=headers)
+
 # -----------------------------
 # File Upload Endpoint
 # -----------------------------
@@ -178,6 +222,35 @@ def extract_text_from_file(file: UploadFile) -> str:
 
     else:
         raise ValueError("Unsupported file type")
+
+
+@app.post("/report/pdf/file")
+async def report_pdf_from_file(file: UploadFile = File(...)):
+    try:
+        text = extract_text_from_file(file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="No text extracted from the uploaded file.")
+
+    cleaned = clean_text(text)
+    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    insights = generate_insights(
+        text,
+        sent,
+        topic_models=topic_models,
+        sentiment_models=sentiment_models,
+    )
+    report_payload = generate_report(text, insights, metadata={"filename": file.filename})
+
+    title = file.filename.rsplit(".", 1)[0] if file.filename else None
+    pdf_bytes = report_to_pdf(report_payload, title=title)
+    safe_title = _safe_slug(title)
+    filename = f"{safe_title}-{datetime.utcnow():%Y%m%d%H%M%S}.pdf"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=headers)
 
 @app.post("/analyze-file")
 async def analyze_file(file: UploadFile = File(...)):
