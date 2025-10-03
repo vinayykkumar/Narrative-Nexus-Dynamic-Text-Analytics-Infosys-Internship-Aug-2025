@@ -30,7 +30,7 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] text-white pt-24 pb-16">
+    <section className="relative min-h-screen bg-black bg-[url(/bg.svg)] bg-no-repeat bg-cover text-white pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-6 text-center">
         <h1 className="text-4xl md:text-5xl font-semibold text-primary">
           How It Works ?
@@ -43,7 +43,7 @@ const HowItWorks = () => {
           {steps.map((step, idx) => (
             <div
               key={idx}
-              className="p-6 bg-white/10 border border-white/20 rounded-xl shadow-md hover:bg-white/20 transition"
+              className="p-6 bg-black border border-white/20 rounded-xl shadow-xl hover:bg-primary/20 hover:backdrop-blur transition"
             >
               <div className="flex items-center justify-center w-12 h-12 mx-auto bg-white/10 rounded-full mb-4">
                 {step.icon}

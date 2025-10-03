@@ -6,7 +6,7 @@ const Hero = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-screen flex flex-col md:flex-row items-center justify-between pb-20 pt-24 px-4 md:px-16 lg:px-24 xl:px-40 bg-black bg-[url(/bg.svg)] text-white">
+    <section className="relative min-h-screen flex flex-col md:flex-row items-center justify-between pb-20 pt-24 px-4 md:px-16 lg:px-24 xl:px-40 bg-black bg-[url(/bg.svg)] bg-no-repeat bg-cover text-white">
 
       <div className="flex flex-col items-center md:items-start">
         {/* Community / Avatar group */}
@@ -31,13 +31,13 @@ const Hero = () => {
         {/* Buttons */}
         <div className="flex items-center gap-4 mt-8 text-sm">
           <button
-            className="bg-white hover:bg-slate-200 text-black active:scale-95 rounded-md px-7 h-11"
+            className="bg-primary hover:bg-indigo-800 text-white active:scale-95 cursor-pointer rounded-md px-7 h-11"
             onClick={() => navigate("/analyze")}
           >
             Get started
           </button>
 
-          <button className="flex items-center gap-2 border border-slate-600 active:scale-95 hover:bg-white/10 transition text-white rounded-md px-6 h-11">
+          <button className="flex items-center gap-2 border border-primary active:scale-95 hover:bg-primary/20 transition text-primary rounded-md px-6 h-11">
             <LucidePlayCircle/>
             <span>Watch demo</span>
           </button>
@@ -46,9 +46,9 @@ const Hero = () => {
 
       {/* Hero image */}
       <img
-        src="https://img.freepik.com/premium-photo/accountants-accounting-mobile-business-plan-generative-ai_199064-2128.jpg"
+        src="gradient-cybersickness-illustration_52683-137622.jpg"
         alt="hero"
-        className="max-w-xs sm:max-w-sm lg:max-w-md transition-all rounded-2xl duration-300 mt-10 md:mt-0"
+        className="max-w-xs sm:max-w-sm lg:max-w-md transition-all rounded-full duration-300 mt-10 md:mt-0"
       />
     </section>
   );

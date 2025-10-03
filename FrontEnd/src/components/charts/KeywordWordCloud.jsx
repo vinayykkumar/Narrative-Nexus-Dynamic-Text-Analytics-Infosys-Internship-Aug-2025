@@ -85,7 +85,7 @@ const KeywordWordCloud = ({ keywords = [], onKeywordSelect, selectedKeyword }) =
                   key={`${word.term}-${rowIndex}-${columnIndex}`}
                   type="button"
                   onClick={() => handleClick(word.term)}
-                  className={`select-none transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                  className={`select-none transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
                     isActive ? "scale-105 text-white drop-shadow-[0_4px_20px_rgba(99,102,241,0.55)]" : "opacity-90 hover:opacity-100"
                   }`}
                   style={{
@@ -104,7 +104,7 @@ const KeywordWordCloud = ({ keywords = [], onKeywordSelect, selectedKeyword }) =
         ))}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-white/5 bg-white/5 p-4 text-center text-xs text-white/70">
+      <div className="mt-6 rounded-2xl border border-white/5 bg-white/5 p-4 text-center text-sm text-white/70">
         {selectedKeyword ? (
           <span>
             Highlighting narrative around <span className="font-semibold text-white">{selectedKeyword}</span>
