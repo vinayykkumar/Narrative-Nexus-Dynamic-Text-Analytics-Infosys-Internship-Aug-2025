@@ -1,461 +1,196 @@
-console.log("🚀 File Upload App Starting...");
-class FileUploadApp {
-    constructor() {
-        this.uploadedFiles = [];
-        this.validationRules = {
-            allowedTypes: ['.txt', '.csv', '.docx', '.pdf', '.doc', '.ppt'],
-            allowedMimeTypes: [
-                'text/plain',
-                'text/csv',
-                'application/csv',
-                'text/comma-separated-values',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/pdf',
-                'application/msword',
-                'application/vnd.ms-powerpoint'
-            ],
-            maxFileSize: 5 * 1024 * 1024, // 5MB in bytes
-            maxTotalSize: 20 * 1024 * 1024, // 20MB in bytes
-            maxFiles: 10
-        };
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Get all the necessary HTML elements ---
+    const analyzeTextButton = document.getElementById('analyze-text-button');
+    const textInput = document.getElementById('text-input');
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const resultsContainer = document.getElementById('results-container');
+    const loader = document.getElementById('loader');
+    const startAnalysisButton = document.getElementById('startAnalysisButton');
+    const clearAllButton = document.getElementById('clearAllButton');
+    const filesList = document.getElementById('filesList');
+    
+    let uploadedFile = null;
+    let sentimentChart = null;
+    let currentResults = null; // NEW: Variable to store the latest analysis results
 
-        this.fileTypeIcons = {
-            'text/plain': '📄',
-            'text/csv': '📊',
-            'application/csv': '📊',
-            'text/comma-separated-values': '📊',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '📝',
-            'application/pdf': '📕',
-            'application/msword': '📝',
-            'application/vnd.ms-powerpoint': '🖥️'
-        };
-
-        this.confirmCallback = null;
-        this.init();
-    }
-
-    init() {
-        console.log("🔧 Initializing File Upload App...");
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
-        } else {
-            this.setupEventListeners();
-        }
-
-        this.updateUI();
-    }
-
-    setupEventListeners() {
-        console.log("🎯 Setting up event listeners...");
-
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        const browseButton = document.getElementById('browseButton');
-        const clearAllButton = document.getElementById('clearAllButton');
-        const startAnalysisButton = document.getElementById('startAnalysisButton');
-
-        if (!uploadZone || !fileInput || !browseButton) {
-            console.error("❌ Required DOM elements not found!");
+    // --- Analyze Pasted Text ---
+    analyzeTextButton.addEventListener('click', () => {
+        const text = textInput.value;
+        if (!text.trim()) {
+            alert('Please paste some text to analyze.');
             return;
         }
+        performTextAnalysis(text);
+    });
 
-        console.log("✅ DOM elements found, binding events...");
-
-        fileInput.addEventListener('change', (e) => {
-            console.log("📁 Files selected via input:", e.target.files.length);
-            if (e.target.files.length > 0) {
-                this.handleFiles(e.target.files);
-                e.target.value = '';
-            }
-        });
-
-        uploadZone.addEventListener('click', () => {
-            console.log("🖱️ Upload zone clicked");
-            fileInput.click();
-        });
-
-        browseButton.addEventListener('click', (e) => {
-            console.log("🖱️ Browse button clicked");
-            e.stopPropagation();
-            fileInput.click();
-        });
-
-        uploadZone.addEventListener('dragover', (e) => this.handleDragOver(e));
-        uploadZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-        uploadZone.addEventListener('drop', (e) => this.handleDrop(e));
-
-        if (clearAllButton) {
-            clearAllButton.addEventListener('click', () => {
-                this.showConfirmModal(
-                    'Clear All Files', 
-                    'Are you sure you want to remove all uploaded files?',
-                    () => this.clearAllFiles()
-                );
-            });
-        }
-
-        if (startAnalysisButton) {
-            startAnalysisButton.addEventListener('click', () => {
-                this.startAnalysis();
-            });
-        }
-
-        this.setupModalEvents();
-
-        console.log("✅ Event listeners setup complete!");
-    }
-
-    handleDragOver(e) {
+    // --- File Upload Logic ---
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
+    uploadZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        e.stopPropagation();
-        const uploadZone = document.getElementById('uploadZone');
-        uploadZone.classList.add('dragover');
-        console.log("📥 Drag over detected");
-    }
-
-    handleDragLeave(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const uploadZone = document.getElementById('uploadZone');
-        if (e.relatedTarget && !uploadZone.contains(e.relatedTarget)) {
-            uploadZone.classList.remove('dragover');
-            console.log("📤 Drag leave detected");
-        } else if (!e.relatedTarget) {
-            uploadZone.classList.remove('dragover');
-            console.log("📤 Drag leave detected (no related target)");
-        }
-    }
-
-    handleDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const uploadZone = document.getElementById('uploadZone');
         uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            handleFile(fileInput.files[0]);
+        }
+    });
+    
+    function handleFile(file) {
+        filesList.innerHTML = `<div class="file-item">${file.name}</div>`;
+        startAnalysisButton.disabled = false;
+        clearAllButton.disabled = false;
+        uploadedFile = file;
+    }
+    
+    startAnalysisButton.addEventListener('click', () => {
+        if (!uploadedFile) {
+            alert("Please select a file first.");
+            return;
+        }
+        if (uploadedFile.type === "text/plain") {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                performTextAnalysis(e.target.result);
+            };
+            reader.readAsText(uploadedFile);
+        } else {
+            performFileAnalysis(uploadedFile);
+        }
+    });
 
-        const files = e.dataTransfer.files;
-        console.log("🎯 Files dropped:", files.length);
+    clearAllButton.addEventListener('click', () => {
+        textInput.value = '';
+        filesList.innerHTML = '';
+        resultsContainer.innerHTML = '';
+        uploadedFile = null;
+        currentResults = null; // NEW: Clear results
+        startAnalysisButton.disabled = true;
+        clearAllButton.disabled = true;
+        if (sentimentChart) {
+            sentimentChart.destroy();
+        }
+    });
 
-        if (files.length > 0) {
-            this.handleFiles(files);
+    // --- API Calls ---
+    async function performTextAnalysis(text) {
+        showLoader();
+        try {
+            const response = await fetch('http://127.0.0.1:5000/analyze_text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text }),
+            });
+            const results = await response.json();
+            if (!response.ok) throw new Error(results.error || 'HTTP Error');
+            displayResults(results);
+        } catch (error) {
+            displayError(error);
         }
     }
 
-    handleFiles(fileList) {
-        console.log("📁 Processing files:", fileList.length);
-        const files = Array.from(fileList);
+    async function performFileAnalysis(file) {
+        showLoader();
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch('http://127.0.0.1:5000/analyze_file', {
+                method: 'POST',
+                body: formData,
+            });
+            const results = await response.json();
+            if (!response.ok) throw new Error(results.error || 'HTTP Error');
+            displayResults(results);
+        } catch (error) {
+            displayError(error);
+        }
+    }
 
-        if (this.uploadedFiles.length + files.length > this.validationRules.maxFiles) {
-            this.showStatus(`Too many files! Maximum ${this.validationRules.maxFiles} files allowed.`, 'error');
+    // --- UI Helper Functions ---
+    function showLoader() {
+        if (sentimentChart) {
+            sentimentChart.destroy();
+        }
+        loader.style.display = 'block';
+        resultsContainer.innerHTML = '';
+        resultsContainer.appendChild(loader);
+    }
+
+    function displayError(error) {
+        loader.style.display = 'none';
+        resultsContainer.innerHTML = `<div class="error">An error occurred: ${error.message}.</div>`;
+    }
+    
+    function displayResults(results) {
+        currentResults = results; // NEW: Store the latest results
+        loader.style.display = 'none';
+        resultsContainer.innerHTML = `
+            <h3>Analysis Results</h3>
+            <div class="result-item"><h4>Key Words</h4><img src="${results.wordcloud}" alt="Word Cloud" class="wordcloud-image"></div>
+            <div class="chart-container"><h4>Sentiment Distribution</h4><canvas id="sentimentChart"></canvas></div>
+            <div class="result-item"><h4>Predicted Topic</h4><p class="topic-badge">${results.topic}</p></div>
+            <div class="result-item"><h4>Generated Summary</h4><p class="summary-text">${results.summary}</p></div>
+            <div id="report-section"></div>
+        `;
+        
+        const ctx = document.getElementById('sentimentChart').getContext('2d');
+        sentimentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Positive', 'Negative'],
+                datasets: [{
+                    data: (results.sentiment === 'positive') ? [1, 0] : [0, 1],
+                    backgroundColor: ['rgba(46, 204, 113, 0.6)', 'rgba(231, 76, 60, 0.6)'],
+                    borderColor: ['rgba(46, 204, 113, 1)', 'rgba(231, 76, 60, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: { x: { display: false, max: 1 }, y: { grid: { display: false } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // NEW: Create and add the download button
+        const reportSection = document.getElementById('report-section');
+        reportSection.innerHTML = `<button id="download-report-button" class="btn">Download Report</button>`;
+        document.getElementById('download-report-button').addEventListener('click', downloadReport);
+    }
+
+    // --- NEW: FUNCTION TO GENERATE AND DOWNLOAD THE REPORT ---
+    function downloadReport() {
+        if (!currentResults) {
+            alert("No results to download.");
             return;
         }
 
-        files.forEach(file => this.processFile(file));
-        this.updateUI();
+        const reportContent = `
+NarrativeNexus Analysis Report
+=================================
+
+Predicted Topic: ${currentResults.topic}
+Predicted Sentiment: ${currentResults.sentiment}
+
+---------------------------------
+Summary
+---------------------------------
+${currentResults.summary}
+        `;
+
+        const blob = new Blob([reportContent.trim()], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'analysis_report.txt';
+        document.body.appendChild(a);
+a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
-
-    processFile(file) {
-        console.log("🔍 Processing file:", file.name, file.type, file.size);
-
-        const fileData = {
-            id: Date.now() + Math.random(),
-            file: file,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            status: 'processing',
-            progress: 0,
-            error: null
-        };
-
-        const validation = this.validateFile(file);
-        if (!validation.valid) {
-            fileData.status = 'error';
-            fileData.error = validation.error;
-            console.log("❌ File validation failed:", validation.error);
-        } else {
-            fileData.status = 'uploading';
-            console.log("✅ File validation passed");
-        }
-
-        this.uploadedFiles.push(fileData);
-        this.updateUI(); // Update UI immediately to show processing state
-
-        if (fileData.status === 'uploading') {
-            this.simulateUpload(fileData);
-        }
-    }
-
-    validateFile(file) {
-        const extension = '.' + file.name.split('.').pop().toLowerCase();
-        if (!this.validationRules.allowedTypes.includes(extension)) {
-            return {
-                valid: false,
-                error: `File type ${extension} not supported. Allowed: ${this.validationRules.allowedTypes.join(', ')}`
-            };
-        }
-        
-        const fileMime = file.type;
-        if (fileMime && !this.validationRules.allowedMimeTypes.includes(fileMime)) {
-             console.warn(`Warning: File "${file.name}" has an unexpected MIME type: ${fileMime}`);
-        }
-
-        if (file.size > this.validationRules.maxFileSize) {
-            return {
-                valid: false,
-                error: `File too large. Maximum size: ${this.formatFileSize(this.validationRules.maxFileSize)}`
-            };
-        }
-
-        const totalSize = this.uploadedFiles.reduce((sum, f) => sum + f.size, 0) + file.size;
-        if (totalSize > this.validationRules.maxTotalSize) {
-            return {
-                valid: false,
-                error: `Total size limit exceeded. Maximum: ${this.formatFileSize(this.validationRules.maxTotalSize)}`
-            };
-        }
-
-        return { valid: true };
-    }
-
-    simulateUpload(fileData) {
-        const duration = 2000 + Math.random() * 3000;
-        const steps = 20;
-        const stepDuration = duration / steps;
-
-        let currentStep = 0;
-
-        const interval = setInterval(() => {
-            currentStep++;
-            fileData.progress = Math.min((currentStep / steps) * 100, 100);
-
-            if (currentStep >= steps) {
-                fileData.status = 'completed';
-                fileData.progress = 100;
-                clearInterval(interval);
-                console.log("✅ Upload completed:", fileData.name);
-                this.showStatus(`File "${fileData.name}" uploaded successfully!`, 'success');
-                this.updateUI(); // Final UI update after completion
-            }
-
-            this.updateFileDisplay();
-        }, stepDuration);
-    }
-    
-    removeFile(fileId) {
-        const fileToRemove = this.uploadedFiles.find(file => file.id === fileId);
-        if (fileToRemove) {
-            this.showConfirmModal(
-                'Remove File',
-                `Are you sure you want to remove the file "${fileToRemove.name}"?`,
-                () => {
-                    console.log("🗑️ Removing file:", fileId);
-                    this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== fileId);
-                    this.updateUI();
-                    this.showStatus('File removed successfully', 'info');
-                }
-            );
-        }
-    }
-
-    clearAllFiles() {
-        console.log("🗑️ Clearing all files");
-        this.uploadedFiles = [];
-        this.updateUI();
-        this.showStatus('All files removed', 'info');
-    }
-
-    startAnalysis() {
-        this.showConfirmModal(
-            'Coming Soon!',
-            'Analysis functionality will be implemented in the upcoming weeks!',
-            () => {},
-            { 
-                confirmText: 'OK', 
-                showCancel: false 
-            }
-        );
-    }
-
-    updateUI() {
-        this.updateFileDisplay();
-        this.updateSummary();
-        this.updateButtons();
-    }
-    
-    updateFileDisplay() {
-        const filesList = document.getElementById('filesList');
-        if (!filesList) return;
-
-        if (this.uploadedFiles.length === 0) {
-            filesList.innerHTML = '';
-            return;
-        }
-
-        filesList.innerHTML = this.uploadedFiles.map(file => `
-            <div class="file-item" data-file-id="${file.id}">
-                <!-- BUG FIX: Changed class. to class= -->
-                <div class="file-info">
-                    <div class="file-icon">${this.getFileIcon(file)}</div>
-                    <div class="file-details">
-                        <h4>${file.name}</h4>
-                        <div class="file-meta">${this.formatFileSize(file.size)} • ${file.type || 'Unknown'}</div>
-                        ${file.status === 'uploading' ? `
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${file.progress}%"></div>
-                            </div>
-                        ` : ''}
-                        ${file.error ? `<div class="error-message">${file.error}</div>` : ''}
-                    </div>
-                </div>
-                <div class="file-status">
-                    <span class="status-badge status-${file.status}">
-                        ${this.getStatusText(file.status)}
-                    </span>
-                    <div class="file-actions">
-                        <button class="btn btn--danger btn-small" onclick="app.removeFile(${file.id})">
-                            🗑️ Remove
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    updateSummary() {
-        const totalFilesEl = document.getElementById('totalFiles');
-        const totalSizeEl = document.getElementById('totalSize');
-
-        if (totalFilesEl) {
-            totalFilesEl.textContent = `${this.uploadedFiles.length} files`;
-        }
-
-        if (totalSizeEl) {
-            const totalSize = this.uploadedFiles.reduce((sum, file) => sum + file.size, 0);
-            totalSizeEl.textContent = this.formatFileSize(totalSize);
-        }
-    }
-
-    updateButtons() {
-        const clearAllButton = document.getElementById('clearAllButton');
-        const startAnalysisButton = document.getElementById('startAnalysisButton');
-
-        const hasFiles = this.uploadedFiles.length > 0;
-        const hasValidFiles = this.uploadedFiles.some(f => f.status === 'completed');
-
-        if (clearAllButton) {
-            clearAllButton.disabled = !hasFiles;
-        }
-
-        if (startAnalysisButton) {
-            startAnalysisButton.disabled = !hasValidFiles;
-        }
-    }
-
-    getFileIcon(file) {
-        return this.fileTypeIcons[file.type] || '📄';
-    }
-
-    getStatusText(status) {
-        const statusTexts = {
-            'processing': '⏳ Processing',
-            'uploading': '📤 Uploading',
-            'completed': '✅ Completed',
-            'error': '❌ Error'
-        };
-        return statusTexts[status] || status;
-    }
-
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 bytes';
-        const k = 1024;
-        const sizes = ['bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-
-    showStatus(message, type = 'info') {
-        const statusMessage = document.getElementById('statusMessage');
-        if (!statusMessage) return;
-
-        statusMessage.innerHTML = `<p class="status-${type}">${message}</p>`;
-
-        if (type !== 'error') {
-            setTimeout(() => {
-                const currentMessage = statusMessage.querySelector('p');
-                if (currentMessage && currentMessage.textContent === message) {
-                   statusMessage.innerHTML = '<p>No files uploaded yet. Select files to get started!</p>';
-                }
-            }, 5000);
-        }
-    }
-
-    showConfirmModal(title, message, callback, options = {}) {
-        const modal = document.getElementById('confirmModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalMessage = document.getElementById('modalMessage');
-        const modalCancel = document.getElementById('modalCancel');
-        const modalConfirm = document.getElementById('modalConfirm');
-
-        if (!modal || !modalTitle || !modalMessage) return;
-
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-
-        modalConfirm.textContent = options.confirmText || 'Confirm';
-        
-        if (options.showCancel === false) {
-            modalCancel.style.display = 'none';
-        } else {
-            modalCancel.style.display = 'inline-block';
-            modalCancel.textContent = options.cancelText || 'Cancel';
-        }
-
-        modal.style.display = 'flex';
-
-        this.confirmCallback = callback;
-    }
-
-    hideModal() {
-        const modal = document.getElementById('confirmModal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-        this.confirmCallback = null;
-    }
-
-    setupModalEvents() {
-        const modalCancel = document.getElementById('modalCancel');
-        const modalConfirm = document.getElementById('modalConfirm');
-        const modal = document.getElementById('confirmModal');
-
-        if (modalCancel) {
-            modalCancel.addEventListener('click', () => this.hideModal());
-        }
-
-        if (modalConfirm) {
-            modalConfirm.addEventListener('click', () => {
-                if (this.confirmCallback) {
-                    this.confirmCallback();
-                }
-                this.hideModal();
-            });
-        }
-
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.hideModal();
-                }
-            });
-        }
-    }
-}
-
-console.log("📦 Creating File Upload App instance...");
-const app = new FileUploadApp();
-
-window.app = app;
-
-console.log("🎉 File Upload App initialized successfully!");
+});
