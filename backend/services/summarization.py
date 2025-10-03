@@ -59,12 +59,24 @@ def _score_sentences_frequency(sentences: List[str]) -> Dict[str, float]:
         scores[s] = raw / float(length)
     return scores
 
-def _abstractive_summary(text: str, max_tokens: int = 128, model_name: str = "sshleifer/distilbart-cnn-12-6") -> str:
-    """Run abstractive summarization with basic chunking.
+def remove_duplicate_sentences(summary: str) -> str:
+    """Remove duplicate sentences from a string (period-delimited heuristic)."""
+    sentences = summary.split('. ')
+    seen = set()
+    unique = []
+    for s in sentences:
+        s_clean = s.strip()
+        if s_clean and s_clean not in seen:
+            unique.append(s_clean)
+            seen.add(s_clean)
+    return '. '.join(unique)
 
-    If transformers isn't available at runtime, raises a RuntimeError to allow
-    caller to fallback gracefully.
-    """
+def _abstractive_summary(
+    text: str,
+    max_tokens: int = 128,
+    model_name: str = "google/pegasus-xsum",
+) -> str:
+    """Run abstractive summarization with chunking using HuggingFace pipeline."""
     try:
         from transformers import pipeline
     except Exception as exc:  # pragma: no cover - env dependent
@@ -117,6 +129,8 @@ def _abstractive_summary(text: str, max_tokens: int = 128, model_name: str = "ss
             min_length=max(16, max_tokens // 4),
             do_sample=False,
             truncation=True,
+            repetition_penalty=1.5,
+            no_repeat_ngram_size=3,
         )
         summaries.append(result[0]["summary_text"].strip())
 
@@ -132,6 +146,9 @@ def _abstractive_summary(text: str, max_tokens: int = 128, model_name: str = "ss
             truncation=True,
         )
         combined = result2[0]["summary_text"].strip()
+
+    # Deduplicate sentences in the final result
+    combined = remove_duplicate_sentences(combined)
 
     return combined
 

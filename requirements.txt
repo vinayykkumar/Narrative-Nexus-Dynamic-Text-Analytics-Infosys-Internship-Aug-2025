@@ -14,3 +14,4 @@ transformers>=4.41.0
 torch>=2.2.0
 nrclex
 jinja2
+pdfplumber

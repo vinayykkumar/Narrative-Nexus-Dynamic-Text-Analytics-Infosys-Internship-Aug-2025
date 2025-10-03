@@ -18,7 +18,7 @@ def _get_run_pipeline():
 def _prepare_excel_input(file_path: Path, text_column: Optional[str]) -> tuple[Path, str]:
     """Normalize various input formats to an Excel file path and decide text column.
 
-    Supports: .xlsx/.xls (pass-through), .csv, .txt
+    Supports: .xlsx/.xls (pass-through), .csv, .txt, .pdf (text extraction)
     For .csv: if text_column not provided or missing, picks the first object/string column.
     For .txt: creates a single-row DataFrame with column 'text'.
     """
@@ -53,7 +53,25 @@ def _prepare_excel_input(file_path: Path, text_column: Optional[str]) -> tuple[P
         df.to_excel(out_excel, index=False)
         return out_excel, "text"
 
-    raise ValueError(f"Unsupported file format: {suffix}. Please upload .xlsx, .xls, .csv, or .txt")
+    if suffix == ".pdf":
+        # Extract text safely using pdfplumber (installed via requirements)
+        try:
+            import pdfplumber  # type: ignore
+            texts: list[str] = []
+            with pdfplumber.open(str(file_path)) as pdf:
+                for page in pdf.pages:
+                    t = page.extract_text() or ""
+                    if t:
+                        texts.extend([ln.strip() for ln in t.splitlines() if ln.strip()])
+            if not texts:
+                texts = [""]
+            df = pd.DataFrame({"text": texts})
+            df.to_excel(out_excel, index=False)
+            return out_excel, "text"
+        except Exception as e:
+            raise ValueError(f"Failed to extract text from PDF: {e}")
+
+    raise ValueError(f"Unsupported file format: {suffix}. Please upload .xlsx, .xls, .csv, .txt, or .pdf")
 
 def run_analysis(
     file_path: Path,

@@ -33,6 +33,7 @@ interface ProcessedFile {
 export function FileProcessor({ files }: { files: File[] }) {
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
 
   const getFileIcon = (type: string) => {
     if (type.includes('spreadsheet') || type.includes('excel')) {
@@ -97,20 +98,32 @@ export function FileProcessor({ files }: { files: File[] }) {
         )
       )
 
-  // Send file to backend for processing (unified /analyze endpoint)
-  const response = await fetch('http://localhost:8000/analyze', {
+      // Quick health check to surface CORS/offline issues early
+      try {
+        const health = await fetch(`${API_BASE}/health`, { cache: 'no-store' })
+        if (!health.ok) {
+          throw new Error('Backend health check failed')
+        }
+      } catch (err) {
+        throw new Error('Cannot reach backend API. Please ensure the server is running and CORS is enabled.')
+      }
+
+      // Send file to backend for processing (unified /analyze endpoint)
+      const response = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         body: formData,
       })
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
+        const text = await response.text().catch(() => '')
+        const detail = text || response.statusText
+        throw new Error(`Upload failed (${response.status}): ${detail}`)
       }
 
       const result = await response.json()
 
       // Convert returned paths to absolute URLs via backend static mount
-      const toUrl = (p: string) => p.startsWith('http') ? p : `http://localhost:8000/${p.replace(/^\/?/, '')}`
+  const toUrl = (p: string) => p.startsWith('http') ? p : `${API_BASE}/${p.replace(/^\/?/, '')}`
       const artifacts = {
         wordclouds: (result.wordcloud_paths || []).map(toUrl),
         topic_distribution_pie: toUrl(result.topic_distribution_pie),
@@ -184,7 +197,7 @@ export function FileProcessor({ files }: { files: File[] }) {
             ? { 
                 ...f, 
                 status: "error" as const,
-                error: error instanceof Error ? error.message : "Upload failed",
+    error: error instanceof Error ? error.message : "Upload failed",
                 processingProgress: 0
               }
             : f
@@ -194,7 +207,7 @@ export function FileProcessor({ files }: { files: File[] }) {
       return {
         ...processedFile,
         status: "error",
-        error: error instanceof Error ? error.message : "Upload failed"
+  error: error instanceof Error ? error.message : "Upload failed"
       }
     }
   }

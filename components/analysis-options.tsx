@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -10,35 +10,31 @@ import { Badge } from "@/components/ui/badge"
 import { Settings, Brain, BarChart3, FileText } from "lucide-react"
 
 export function AnalysisOptions() {
-  const [selectedAnalyses, setSelectedAnalyses] = useState(() => {
-    // Initialize from localStorage to persist across navigation
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('analysisSelectedAnalyses')
-        if (raw) return JSON.parse(raw)
-      } catch {}
-    }
-    return {
-      topicModeling: true,
-      sentimentAnalysis: true,
-      summarization: true,
-    }
+  // Use stable SSR-safe defaults, hydrate client state after mount to avoid hydration mismatch
+  const [selectedAnalyses, setSelectedAnalyses] = useState({
+    topicModeling: true,
+    sentimentAnalysis: true,
+    summarization: true,
   })
 
-  const [topicCount, setTopicCount] = useState<number[]>(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('analysisTopicCount')
-      if (raw) return [Number(raw) || 5]
-    }
-    return [5]
-  })
-  const [summaryLength, setSummaryLength] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('analysisSummaryLength')
-      if (raw) return raw
-    }
-    return "medium"
-  })
+  const [topicCount, setTopicCount] = useState<number[]>([5])
+  const [summaryLength, setSummaryLength] = useState("medium")
+
+  // Hydrate from localStorage after mount
+  useEffect(() => {
+    try {
+      const rawSel = localStorage.getItem('analysisSelectedAnalyses')
+      if (rawSel) setSelectedAnalyses(JSON.parse(rawSel))
+    } catch {}
+    try {
+      const rawTopics = localStorage.getItem('analysisTopicCount')
+      if (rawTopics) setTopicCount([Number(rawTopics) || 5])
+    } catch {}
+    try {
+      const rawSummary = localStorage.getItem('analysisSummaryLength')
+      if (rawSummary) setSummaryLength(rawSummary)
+    } catch {}
+  }, [])
 
   const analysisTypes = [
     {
