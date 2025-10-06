@@ -102,6 +102,19 @@ export function AnalysisProgress({ onComplete, inputData }: AnalysisProgressProp
   }, [startTime, isComplete])
 
   const startAnalysis = async () => {
+    // Check if we have preprocessing results from the previous step
+    const currentAnalysis = localStorage.getItem('currentAnalysis');
+    let preprocessingResult = null;
+    
+    if (currentAnalysis) {
+      try {
+        const analysisData = JSON.parse(currentAnalysis);
+        preprocessingResult = analysisData.preprocessingResult;
+      } catch (e) {
+        console.error("Error parsing analysis data:", e);
+      }
+    }
+
     for (let i = 0; i < steps.length; i++) {
       setCurrentStep(i)
       
@@ -114,7 +127,37 @@ export function AnalysisProgress({ onComplete, inputData }: AnalysisProgressProp
         )
       )
 
-      // Simulate step processing with progress updates
+      // If this is the preprocessing step and we already have results, use them
+      if (i === 0 && preprocessingResult) {
+        // Skip the simulation for preprocessing since we already have real results
+        setSteps(prev => 
+          prev.map((step, index) => 
+            index === i 
+              ? { 
+                  ...step, 
+                  status: "completed", 
+                  progress: 100,
+                  result: {
+                    cleaned_words: preprocessingResult.stats.token_count,
+                    removed_words: preprocessingResult.stats.original_length - preprocessingResult.stats.cleaned_length,
+                    sentences: preprocessingResult.processed_text.split('.').length - 1,
+                    processing_time: preprocessingResult.stats.processing_time,
+                    compression_ratio: preprocessingResult.stats.compression_ratio,
+                  }
+                }
+              : step
+          )
+        )
+        
+        // Update overall progress for this step
+        setOverallProgress(100 / steps.length)
+        
+        // Small delay before next step
+        await new Promise(resolve => setTimeout(resolve, 500))
+        continue;
+      }
+
+      // Simulate step processing with progress updates for other steps
       const stepDuration = 2000 + Math.random() * 3000 // 2-5 seconds per step
       const progressInterval = stepDuration / 100
 

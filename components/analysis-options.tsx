@@ -7,19 +7,38 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { Settings, Brain, BarChart3, FileText, Target } from "lucide-react"
+import { Settings, Brain, BarChart3, FileText } from "lucide-react"
 
 export function AnalysisOptions() {
-  const [selectedAnalyses, setSelectedAnalyses] = useState({
-    topicModeling: true,
-    sentimentAnalysis: true,
-    summarization: true,
-    keywordExtraction: false,
-    entityRecognition: false,
+  const [selectedAnalyses, setSelectedAnalyses] = useState(() => {
+    // Initialize from localStorage to persist across navigation
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('analysisSelectedAnalyses')
+        if (raw) return JSON.parse(raw)
+      } catch {}
+    }
+    return {
+      topicModeling: true,
+      sentimentAnalysis: true,
+      summarization: true,
+    }
   })
 
-  const [topicCount, setTopicCount] = useState([5])
-  const [summaryLength, setSummaryLength] = useState("medium")
+  const [topicCount, setTopicCount] = useState<number[]>(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('analysisTopicCount')
+      if (raw) return [Number(raw) || 5]
+    }
+    return [5]
+  })
+  const [summaryLength, setSummaryLength] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('analysisSummaryLength')
+      if (raw) return raw
+    }
+    return "medium"
+  })
 
   const analysisTypes = [
     {
@@ -43,27 +62,26 @@ export function AnalysisOptions() {
       icon: FileText,
       recommended: true,
     },
-    {
-      id: "keywordExtraction",
-      name: "Keyword Extraction",
-      description: "Identify important keywords and phrases",
-      icon: Target,
-      recommended: false,
-    },
-    {
-      id: "entityRecognition",
-      name: "Named Entity Recognition",
-      description: "Detect people, places, organizations, etc.",
-      icon: Target,
-      recommended: false,
-    },
   ]
 
   const handleAnalysisToggle = (analysisId: string, checked: boolean) => {
-    setSelectedAnalyses((prev) => ({
-      ...prev,
-      [analysisId]: checked,
-    }))
+    setSelectedAnalyses((prev: { topicModeling: boolean; sentimentAnalysis: boolean; summarization: boolean }) => {
+      const next = { ...prev, [analysisId]: checked } as typeof prev
+      try { localStorage.setItem('analysisSelectedAnalyses', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+
+  // Persist topic count changes
+  const onTopicCountChange = (value: number[]) => {
+    setTopicCount(value)
+    try { localStorage.setItem('analysisTopicCount', String(value[0])) } catch {}
+  }
+
+  // Persist summary length changes
+  const onSummaryLengthChange = (value: string) => {
+    setSummaryLength(value)
+    try { localStorage.setItem('analysisSummaryLength', value) } catch {}
   }
 
   return (
@@ -116,7 +134,7 @@ export function AnalysisOptions() {
             <h4 className="font-serif font-semibold">Topic Modeling Settings</h4>
             <div className="space-y-2">
               <Label>Number of Topics: {topicCount[0]}</Label>
-              <Slider value={topicCount} onValueChange={setTopicCount} max={20} min={2} step={1} className="w-full" />
+              <Slider value={topicCount} onValueChange={onTopicCountChange} max={20} min={2} step={1} className="w-full" />
               <p className="text-xs text-muted-foreground">
                 Higher values may reveal more specific themes but could be less coherent
               </p>
@@ -129,7 +147,7 @@ export function AnalysisOptions() {
             <h4 className="font-serif font-semibold">Summarization Settings</h4>
             <div className="space-y-2">
               <Label>Summary Length</Label>
-              <Select value={summaryLength} onValueChange={setSummaryLength}>
+              <Select value={summaryLength} onValueChange={onSummaryLengthChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

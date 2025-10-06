@@ -66,69 +66,136 @@ export function FileProcessor({ files }: { files: File[] }) {
 
     setProcessedFiles(prev => [...prev, processedFile])
 
-    // Simulate processing with progress updates
-    for (let progress = 0; progress <= 100; progress += 10) {
-      await new Promise(resolve => setTimeout(resolve, 200))
+    try {
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('session_id', `file_upload_${Date.now()}`)
+  // Enable fast mode for quicker end-to-end analysis
+  formData.append('fast_mode', 'true')
+
+      // Include Analysis Options from localStorage if available
+      try {
+        const topicCount = Number(localStorage.getItem('analysisTopicCount') || '5')
+        formData.append('n_topics', String(topicCount))
+      } catch {}
+
+      try {
+        const summaryLen = localStorage.getItem('analysisSummaryLength') || 'medium'
+        // Map summary length to number of sentences for dataset summary
+        const lengthToSentences: Record<string, number> = { short: 2, medium: 5, long: 8 }
+        const maxSentences = lengthToSentences[summaryLen] ?? 5
+        formData.append('dataset_summary_max_sentences', String(maxSentences))
+      } catch {}
+
+      // Update progress as we start upload
       setProcessedFiles(prev => 
         prev.map(f => 
           f.id === processedFile.id 
-            ? { ...f, processingProgress: progress }
+            ? { ...f, processingProgress: 25 }
             : f
         )
       )
-    }
 
-    // Simulate text extraction based on file type
-    let extractedText = ""
-    let wordCount = 0
-    let finalStatus: "completed" | "error" = "completed"
-    let error: string | undefined
+  // Send file to backend for processing (unified /analyze endpoint)
+  const response = await fetch('http://localhost:8000/analyze', {
+        method: 'POST',
+        body: formData,
+      })
 
-    try {
-      if (file.type.includes('text')) {
-        extractedText = await file.text()
-      } else if (file.type.includes('json')) {
-        const jsonData = JSON.parse(await file.text())
-        extractedText = JSON.stringify(jsonData, null, 2)
-      } else {
-        // Simulate extraction for other file types
-        extractedText = `Extracted text content from ${file.name}. This is simulated content for demonstration purposes. In a real implementation, this would contain the actual extracted text from the document using appropriate parsers for PDF, Word documents, Excel files, etc.`
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`)
       }
-      
-      wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length
-      
-      // Simulate occasional processing errors
-      if (Math.random() < 0.1) {
-        finalStatus = "error"
-        error = "Failed to extract text from file"
-      }
-    } catch (err) {
-      finalStatus = "error"
-      error = "Invalid file format or corrupted file"
-    }
 
-    // Update final status
-    setProcessedFiles(prev => 
-      prev.map(f => 
-        f.id === processedFile.id 
-          ? { 
-              ...f, 
-              status: finalStatus,
-              extractedText,
-              wordCount,
-              error,
-              processingProgress: 100
-            }
-          : f
+      const result = await response.json()
+
+      // Convert returned paths to absolute URLs via backend static mount
+      const toUrl = (p: string) => p.startsWith('http') ? p : `http://localhost:8000/${p.replace(/^\/?/, '')}`
+      const artifacts = {
+        wordclouds: (result.wordcloud_paths || []).map(toUrl),
+        topic_distribution_pie: toUrl(result.topic_distribution_pie),
+        sentiment_distribution_bar: toUrl(result.sentiment_distribution_bar),
+        topic_sentiment_bar: toUrl(result.topic_sentiment_bar),
+        topic_sentiment_pie: toUrl(result.topic_sentiment_pie),
+        enriched_csv: toUrl(result.enriched_csv),
+  report_html: result.report_html ? toUrl(result.report_html) : null,
+      }
+
+      // Persist artifacts for dashboard page
+      localStorage.setItem('analysisArtifacts', JSON.stringify(artifacts))
+
+      // Persist structured results for tabs
+      const structuredResults = {
+        topic_modeling_results: result.topic_modeling_results || null,
+  sentiment_results: result.sentiment_results || null,
+  dataset_summary: result.dataset_summary || null,
+  report_html: artifacts.report_html,
+      }
+      localStorage.setItem('analysisResults', JSON.stringify(structuredResults))
+
+      // Update progress after successful analysis
+      setProcessedFiles(prev => 
+        prev.map(f => 
+          f.id === processedFile.id 
+    ? { ...f, processingProgress: 90 }
+            : f
+        )
       )
-    )
+      
+  // Backend returns artifact paths; we don't have direct text/wordCount here
+  const extractedText = ""
+  const wordCount = 0
+      
+      // Complete processing
+      setProcessedFiles(prev => 
+        prev.map(f => 
+          f.id === processedFile.id 
+            ? { 
+                ...f, 
+                processingProgress: 100,
+                status: "completed" as const,
+                extractedText,
+                wordCount
+              }
+            : f
+        )
+      )
 
-    return {
-      ...processedFile,
-      status: finalStatus,
-      extractedText,
-      wordCount,
-      error,
+      // Redirect to dashboard to view artifacts
+      console.log(`🎉 Analysis complete. Artifacts:`, artifacts)
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 800)
+
+      return {
+        ...processedFile,
+        status: "completed",
+        extractedText,
+        wordCount,
+        processingProgress: 100
+      }
+      
+    } catch (error) {
+      console.error('File processing error:', error)
+      
+      setProcessedFiles(prev => 
+        prev.map(f => 
+          f.id === processedFile.id 
+            ? { 
+                ...f, 
+                status: "error" as const,
+                error: error instanceof Error ? error.message : "Upload failed",
+                processingProgress: 0
+              }
+            : f
+        )
+      )
+
+      return {
+        ...processedFile,
+        status: "error",
+        error: error instanceof Error ? error.message : "Upload failed"
+      }
     }
   }
 

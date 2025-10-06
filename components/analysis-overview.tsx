@@ -1,78 +1,105 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { MetricsDashboard } from "@/components/visualizations/metrics-dashboard"
-import { FileText, MessageSquare, TrendingUp, Clock, BarChart3, Brain, Target } from "lucide-react"
+import { FileText, MessageSquare, BarChart3, Brain, Target } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-export function AnalysisOverview() {
+interface AnalysisOverviewProps {
+  dashboardData?: any
+  reportData?: any
+  sessionId?: string | null
+}
+
+export function AnalysisOverview({ dashboardData, reportData, sessionId }: AnalysisOverviewProps) {
+  const router = useRouter()
+  // Load structured results from localStorage as a fallback
+  const [localResults, setLocalResults] = useState<any | null>(null)
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('analysisResults') : null
+      if (raw) setLocalResults(JSON.parse(raw))
+    } catch {}
+  }, [])
+
+  // Extract real data if available (prefer dashboard, else local)
+  const sentimentData = dashboardData?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'sentiment')?.results
+    || localResults?.sentiment_results
+  const topicData = dashboardData?.charts_data?.analysis_results?.find((r: any) => r.analysis_type === 'topic_modeling')?.results
+    || localResults?.topic_modeling_results
+  const insights = dashboardData?.charts_data?.insights?.[0]
+
+  // Derived metrics from available data
+  const totalTexts: number = dashboardData?.overview?.total_texts_processed
+    || localResults?.sentiment_results?.summary?.total_sentences
+    || 1
+  const overallSentiment: string = sentimentData?.overall_sentiment || 'Neutral'
+  const overallConfidencePct: number | undefined =
+    typeof sentimentData?.overall_confidence === 'number'
+      ? sentimentData.overall_confidence * 100
+      : undefined
+  const dist = sentimentData?.sentiment_distribution as { positive?: number; negative?: number; neutral?: number } | undefined
+  const topSentimentEntry = dist
+    ? (Object.entries(dist) as Array<[string, number]>).sort((a, b) => b[1] - a[1])[0]
+    : undefined
+
+  // Metrics card values (no dummy data)
   const keyMetrics = [
     {
-      title: "Total Words",
-      value: "12,847",
-      change: "+2.3%",
-      changeType: "increase" as const,
+      title: "Total Texts",
+      value: String(totalTexts),
       icon: FileText,
       color: "#3b82f6",
-      description: "Content volume",
+      description: "Texts analyzed",
     },
     {
-      title: "Sentences",
-      value: "1,234",
-      change: "+1.8%",
-      changeType: "increase" as const,
+      title: "Sentiment Confidence",
+      value: overallConfidencePct != null ? `${overallConfidencePct.toFixed(1)}%` : "–",
       icon: MessageSquare,
       color: "#10b981",
-      description: "Text segments",
-    },
-    {
-      title: "Avg Sentiment",
-      value: "0.72",
-      change: "+0.15",
-      changeType: "increase" as const,
-      progress: 72,
-      icon: TrendingUp,
-      color: "#8b5cf6",
-      description: "Positive tone",
+      description: `Overall: ${overallSentiment}`,
     },
     {
       title: "Topics Found",
-      value: "8",
-      change: "optimal",
-      changeType: "neutral" as const,
+      value: topicData?.num_topics != null ? String(topicData.num_topics) : "–",
       icon: Brain,
       color: "#f59e0b",
-      description: "Well-structured",
+      description: "Main themes",
+    },
+    {
+      title: "Top Sentiment",
+      value: topSentimentEntry ? `${topSentimentEntry[0].toUpperCase()} ${(topSentimentEntry[1] * 100).toFixed(1)}%` : "–",
+      icon: Target,
+      color: "#8b5cf6",
+      description: dist ? `P ${(Math.round((dist.positive || 0) * 100))}% / N ${(Math.round((dist.negative || 0) * 100))}% / Neu ${(Math.round((dist.neutral || 0) * 100))}%` : undefined,
     },
   ]
 
-  const analysisInsights = [
-    {
-      type: "Topic Distribution",
-      description: "Technology and Innovation themes dominate 34% of content",
-      confidence: 92,
-      priority: "high",
-    },
-    {
-      type: "Sentiment Pattern",
-      description: "Overall positive sentiment with 72% positive mentions",
-      confidence: 88,
-      priority: "medium",
-    },
-    {
-      type: "Key Themes",
-      description: "Customer satisfaction and product quality are recurring themes",
-      confidence: 85,
-      priority: "high",
-    },
-    {
-      type: "Content Structure",
-      description: "Well-structured content with clear topic transitions",
-      confidence: 79,
-      priority: "low",
-    },
-  ]
+  // Insights block: prefer dashboard insights; otherwise synthesize simple ones from results
+  const analysisInsights = insights?.key_insights
+    ? insights.key_insights.map((insight: any) => ({
+        type: insight.category || insight.type || "Analysis",
+        description: insight.description || insight.title || "No description available",
+        confidence: Math.round((insight.confidence || 0.8) * 100),
+        priority: insight.impact === "high" ? "high" : insight.impact === "medium" ? "medium" : "low",
+      }))
+    : [
+        {
+          type: "Sentiment",
+          description: `Overall ${overallSentiment} with ${(overallConfidencePct ?? 0).toFixed(1)}% confidence`,
+          confidence: Math.round(overallConfidencePct ?? 0),
+          priority: "medium",
+        },
+        {
+          type: "Topics",
+          description: topicData?.num_topics ? `Identified ${topicData.num_topics} main topics` : "Topics identified",
+          confidence: 80,
+          priority: "low",
+        },
+      ]
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -109,31 +136,24 @@ export function AnalysisOverview() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Processing Completion</span>
-                <span className="text-sm text-muted-foreground">92%</span>
+                <span className="text-sm text-muted-foreground">{(sentimentData || topicData) ? '100%' : '0%'}</span>
               </div>
-              <Progress value={92} className="h-2" />
+              <Progress value={(sentimentData || topicData) ? 100 : 0} className="h-2" />
             </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Data Quality Score</span>
-                <Badge variant="secondary">Excellent</Badge>
+            {overallConfidencePct != null && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Data Quality (Confidence)</span>
+                  <Badge variant="secondary">{overallConfidencePct.toFixed(1)}%</Badge>
+                </div>
+                <Progress value={overallConfidencePct} className="h-2" />
               </div>
-              <Progress value={88} className="h-2" />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Topic Coherence</span>
-                <span className="text-sm text-muted-foreground">0.85</span>
-              </div>
-              <Progress value={85} className="h-2" />
-            </div>
+            )}
 
             <div className="pt-4 border-t border-border">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                Analysis completed in 2m 34s
+                Analysis completed
               </div>
             </div>
           </CardContent>
@@ -149,7 +169,7 @@ export function AnalysisOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analysisInsights.map((insight, index) => (
+              {analysisInsights.map((insight: any, index: number) => (
                 <div key={index} className="flex items-start space-x-3 p-3 bg-muted/30 rounded-lg">
                   <div className={`w-2 h-2 rounded-full mt-2 ${getPriorityColor(insight.priority)}`} />
                   <div className="flex-1">
@@ -179,7 +199,7 @@ export function AnalysisOverview() {
             <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
               <h4 className="font-medium mb-2">Explore Topic Details</h4>
               <p className="text-sm text-muted-foreground">
-                Dive deeper into the 8 identified topics to understand content themes
+                Dive deeper into the {topicData?.num_topics ?? 'identified'} topics to understand content themes
               </p>
             </div>
             <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
@@ -188,7 +208,10 @@ export function AnalysisOverview() {
                 Review sentiment patterns and identify areas for improvement
               </p>
             </div>
-            <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
+            <div
+              className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => router.push('/reports/analysis')}
+            >
               <h4 className="font-medium mb-2">Generate Report</h4>
               <p className="text-sm text-muted-foreground">
                 Create a comprehensive report with all findings and insights

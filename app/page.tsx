@@ -59,17 +59,40 @@ export default function HomePage() {
             comprehensive insights to drive informed decision-making.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
             <Link href="/analyze">
               <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-lg px-8">
                 Start Analysis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
-            <Link href="/preprocessing">
-              <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
-                Data Preprocessing
-                <Zap className="w-5 h-5 ml-2" />
+          </div>
+          
+          {/* Quick Access Links */}
+          <div className="flex flex-wrap justify-center gap-3 mt-8">
+            <Link href="/architecture">
+              <Button variant="default" size="sm" className="text-xs bg-blue-600 hover:bg-blue-700">
+                🏗️ Architecture Flow
+              </Button>
+            </Link>
+            <Link href="/sentiment">
+              <Button variant="outline" size="sm" className="text-xs">
+                Sentiment Analysis
+              </Button>
+            </Link>
+            <Link href="/processing">
+              <Button variant="outline" size="sm" className="text-xs">
+                Text Summarization
+              </Button>
+            </Link>
+            <Link href="/visualizations">
+              <Button variant="outline" size="sm" className="text-xs">
+                Advanced Charts
+              </Button>
+            </Link>
+            <Link href="/reports">
+              <Button variant="outline" size="sm" className="text-xs">
+                Generate Reports
               </Button>
             </Link>
           </div>
@@ -145,18 +168,6 @@ export default function HomePage() {
                 <CardTitle className="font-serif">Interactive Dashboards</CardTitle>
                 <CardDescription>
                   Visualize insights with word clouds, charts, and comprehensive reports
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-border hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-6 h-6 text-secondary" />
-                </div>
-                <CardTitle className="font-serif">Data Preprocessing</CardTitle>
-                <CardDescription>
-                  Clean, normalize, and tokenize text data with advanced preprocessing pipelines
                 </CardDescription>
               </CardHeader>
             </Card>

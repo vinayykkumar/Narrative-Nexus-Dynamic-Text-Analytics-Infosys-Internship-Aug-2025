@@ -44,9 +44,6 @@ interface SentimentAnalysisResultsProps {
 }
 
 export function SentimentAnalysisResults({ results }: SentimentAnalysisResultsProps) {
-  // Debug: Log what data we're receiving
-  console.log("🔍 SentimentAnalysisResults received data:", results)
-  
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment.toLowerCase()) {
       case 'positive':
@@ -132,43 +129,40 @@ export function SentimentAnalysisResults({ results }: SentimentAnalysisResultsPr
       </Card>
 
       {/* Emotional Indicators */}
-      {results.emotional_indicators && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Emotional Indicators</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Object.entries(results.emotional_indicators).map(([emotion, score]) => (
-                <div key={emotion} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="capitalize">{emotion}:</span>
-                    <span className="font-medium">{(score * 100).toFixed(1)}%</span>
-                  </div>
-                  <Progress value={score * 100} className="w-full" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Emotional Indicators</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Object.entries(results.emotional_indicators).map(([emotion, score]) => (
+              <div key={emotion} className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="capitalize">{emotion}:</span>
+                  <span className="font-medium">{(score * 100).toFixed(1)}%</span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                <Progress value={score * 100} className="w-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Statistics */}
-      {results.summary && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Analysis Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600">Total Sentences</div>
-                <div className="text-gray-900 text-lg font-semibold">{results.summary.total_sentences}</div>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <div className="text-sm text-green-600">Positive</div>
-                <div className="text-green-900 text-lg font-semibold">{results.summary.positive_sentences}</div>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Analysis Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-600">Total Sentences</div>
+              <div className="text-gray-900 text-lg font-semibold">{results.summary.total_sentences}</div>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <div className="text-sm text-green-600">Positive</div>
+              <div className="text-green-900 text-lg font-semibold">{results.summary.positive_sentences}</div>
+            </div>
             <div className="p-3 bg-red-50 rounded-lg">
               <div className="text-sm text-red-600">Negative</div>
               <div className="text-red-900 text-lg font-semibold">{results.summary.negative_sentences}</div>
@@ -184,17 +178,15 @@ export function SentimentAnalysisResults({ results }: SentimentAnalysisResultsPr
           </div>
         </CardContent>
       </Card>
-      )}
 
       {/* Detailed Results */}
-      {results.results && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Sentence-by-Sentence Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {results.results.map((result, index) => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Sentence-by-Sentence Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {results.results.map((result, index) => (
               <div key={index} className="p-3 border rounded-lg">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
@@ -215,7 +207,6 @@ export function SentimentAnalysisResults({ results }: SentimentAnalysisResultsPr
           </div>
         </CardContent>
       </Card>
-      )}
     </div>
   )
 }

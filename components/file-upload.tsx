@@ -46,7 +46,28 @@ export function FileUpload() {
   }, [])
 
   const processFiles = (fileList: File[]) => {
-    setUploadedFiles(prev => [...prev, ...fileList])
+    const maxFileSize = 50 * 1024 * 1024 // 50MB - matching backend limit
+    const validFiles: File[] = []
+    const errors: string[] = []
+
+    fileList.forEach(file => {
+      if (file.size > maxFileSize) {
+        errors.push(`File "${file.name}" is too large (${formatFileSize(file.size)}). Maximum size is 50MB.`)
+      } else if (file.size === 0) {
+        errors.push(`File "${file.name}" appears to be empty.`)
+      } else {
+        validFiles.push(file)
+      }
+    })
+
+    if (errors.length > 0) {
+      alert("File upload errors:\n" + errors.join("\n"))
+    }
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles])
+      console.log(`✅ Added ${validFiles.length} valid files for processing`)
+    }
   }
 
   const removeFile = (index: number) => {
@@ -61,7 +82,7 @@ export function FileUpload() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const supportedFormats = [".txt", ".csv", ".docx", ".pdf", ".json"]
+  const supportedFormats = [".xlsx", ".csv", ".txt"]
 
   return (
     <div className="space-y-4">
@@ -82,7 +103,7 @@ export function FileUpload() {
           <input
             type="file"
             multiple
-            accept=".txt,.csv,.docx,.pdf,.json"
+            accept=".xlsx,.csv,.txt"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"

@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+nltk
+scikit-learn
+seaborn
+matplotlib
+wordcloud
+pillow
+openpyxl
+python-multipart
+transformers>=4.41.0
+torch>=2.2.0
+nrclex
+jinja2

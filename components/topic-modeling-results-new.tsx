@@ -13,7 +13,7 @@ interface TopicModelingResultsProps {
     topics: Array<{
       topic_id: number
       topic_label: string
-      top_words: Array<[string, number]>
+      top_words: [string, number][]
       keywords: string[]
       description: string
     }>
@@ -23,11 +23,7 @@ interface TopicModelingResultsProps {
 export function TopicModelingResults({ results }: TopicModelingResultsProps) {
   const [selectedTopic, setSelectedTopic] = useState<number>(0)
 
-  // Debug: Log what data we're receiving
-  console.log("🔍 TopicModelingResults received data:", results)
-
   if (!results) {
-    console.log("❌ No results data received")
     return (
       <Card className="border-border">
         <CardHeader>
@@ -50,7 +46,6 @@ export function TopicModelingResults({ results }: TopicModelingResultsProps) {
   }
 
   const { topics, algorithm, num_topics } = results
-  console.log("✅ Topic modeling data loaded:", { algorithm, num_topics, topicsCount: topics?.length })
 
   return (
     <div className="space-y-6">
