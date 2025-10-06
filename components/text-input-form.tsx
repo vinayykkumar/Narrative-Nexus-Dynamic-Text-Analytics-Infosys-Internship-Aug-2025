@@ -8,9 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileUpload } from "@/components/file-upload"
-import { DataSourceConnector } from "@/components/data-source-connector"
 import { AnalysisOptions } from "@/components/analysis-options"
-import { FileText, Type, Database, ArrowRight, Loader2 } from "lucide-react"
+import { FileText, Type, ArrowRight, Loader2 } from "lucide-react"
 import { backendAPI } from "@/lib/api/backend-client"
 
 export function TextInputForm() {
@@ -179,13 +178,12 @@ export function TextInputForm() {
         <CardHeader>
           <CardTitle className="font-serif">Input Your Data</CardTitle>
           <CardDescription>
-            Choose how you'd like to provide text for analysis. You can upload files, paste text directly, or connect to
-            data sources.
+            Choose how you'd like to provide text for analysis. You can upload files or paste text directly.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="text" className="flex items-center gap-2">
                 <Type className="w-4 h-4" />
                 Text Input
@@ -193,10 +191,6 @@ export function TextInputForm() {
               <TabsTrigger value="file" className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 File Upload
-              </TabsTrigger>
-              <TabsTrigger value="source" className="flex items-center gap-2">
-                <Database className="w-4 h-4" />
-                Data Source
               </TabsTrigger>
             </TabsList>
 
@@ -219,10 +213,6 @@ export function TextInputForm() {
 
             <TabsContent value="file" className="space-y-4">
               <FileUpload />
-            </TabsContent>
-
-            <TabsContent value="source" className="space-y-4">
-              <DataSourceConnector />
             </TabsContent>
           </Tabs>
         </CardContent>

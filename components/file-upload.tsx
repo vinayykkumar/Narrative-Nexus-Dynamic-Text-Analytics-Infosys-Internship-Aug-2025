@@ -82,7 +82,7 @@ export function FileUpload() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const supportedFormats = [".xlsx", ".csv", ".txt"]
+  const supportedFormats = [".xlsx", ".csv", ".txt", ".pdf"]
 
   return (
     <div className="space-y-4">
@@ -94,6 +94,7 @@ export function FileUpload() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={() => document.getElementById('file-upload')?.click()}
       >
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Upload className="w-12 h-12 text-muted-foreground mb-4" />
@@ -103,16 +104,22 @@ export function FileUpload() {
           <input
             type="file"
             multiple
-            accept=".xlsx,.csv,.txt"
+            accept=".xlsx,.csv,.txt,.pdf"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
           />
-          <label htmlFor="file-upload">
-            <Button variant="outline" className="cursor-pointer bg-transparent">
-              Choose Files
-            </Button>
-          </label>
+          <Button 
+            variant="outline" 
+            type="button" 
+            onClick={(e) => {
+              e.stopPropagation()
+              document.getElementById('file-upload')?.click()
+            }}
+            className="cursor-pointer"
+          >
+            Choose Files
+          </Button>
 
           <div className="flex flex-wrap gap-2 mt-4">
             {supportedFormats.map((format) => (

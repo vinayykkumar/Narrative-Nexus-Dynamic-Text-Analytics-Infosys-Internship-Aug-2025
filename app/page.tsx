@@ -202,8 +202,8 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-serif font-semibold mb-4">1. Upload Your Data</h3>
               <p className="text-muted-foreground">
-                Upload documents, paste text, or connect data sources. We support multiple formats including .txt, .csv,
-                .docx, and more.
+                Upload documents or paste text directly. We support multiple formats including .txt, .csv,
+                .xlsx, .pdf, and more.
               </p>
             </div>
 
