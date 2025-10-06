@@ -12,6 +12,7 @@ import { SentimentAnalysisResults } from "@/components/sentiment-analysis-result
 import TextSummaryResults from "@/components/text-summary-results"
 import { BarChart3, Brain, FileText, Target, Clock, CheckCircle, AlertCircle, Pause, RotateCcw } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 interface AnalysisDashboardProps {
   dashboardData?: any
@@ -20,6 +21,7 @@ interface AnalysisDashboardProps {
 }
 
 export function AnalysisDashboard({ dashboardData, reportData, sessionId }: AnalysisDashboardProps) {
+  const searchParams = useSearchParams()
   const [analysisStatus, setAnalysisStatus] = useState<"running" | "completed" | "paused" | "error">("completed")
   const [activeTab, setActiveTab] = useState("overview")
   const [analysisResults, setAnalysisResults] = useState<any | null>(null)
@@ -32,6 +34,14 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
     analysisResults: dashboardData?.charts_data?.analysis_results,
     sessionId 
   })
+
+  // Handle URL query parameter for tab navigation
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['overview', 'topics', 'sentiment', 'summary', 'insights'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   // Load structured results from localStorage (set by upload flow)
   useEffect(() => {
@@ -66,36 +76,42 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
     }
   }, [dashboardData])
 
+  // Check if insights exist in analysisResults
+  const hasInsights = analysisResults?.insights && Array.isArray(analysisResults.insights) && analysisResults.insights.length > 0
+  const hasSummary = analysisResults?.dataset_summary && analysisResults.dataset_summary.summary
+  const hasTopics = analysisResults?.topic_modeling_results && analysisResults.topic_modeling_results.topics
+  const hasSentiment = analysisResults?.sentiment_results && analysisResults.sentiment_results.overall_sentiment
+
   // Use real data if available, fallback to demo data
   const dashboard = dashboardData?.dashboard || dashboardData
   // Access artifacts from dashboardData or local fallback
   const artifacts = (dashboardData && (dashboardData as any).artifacts) || localArtifacts || null
   const analysisProgress = dashboard ? {
     preprocessing: 100,
-    topicModeling: dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0,
-    sentimentAnalysis: dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0,
-    summarization: dashboard.overview?.insights_generated > 0 ? 100 : 0,
-    overall: dashboard.overview?.analysis_types_completed >= 2 && dashboard.overview?.insights_generated > 0 ? 100 : 80,
+    topicModeling: hasTopics ? 100 : (dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0),
+    sentimentAnalysis: hasSentiment ? 100 : (dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0),
+    summarization: hasSummary ? 100 : (dashboard.overview?.insights_generated > 0 ? 100 : 0),
+    overall: (hasTopics && hasSentiment && hasInsights) ? 100 : (dashboard.overview?.analysis_types_completed >= 2 && dashboard.overview?.insights_generated > 0 ? 100 : 80),
   } : {
     preprocessing: 100,
-    topicModeling: 100,
-    sentimentAnalysis: 100,
-    summarization: 85,
-    overall: 92,
+    topicModeling: hasTopics ? 100 : 100,
+    sentimentAnalysis: hasSentiment ? 100 : 100,
+    summarization: hasSummary ? 100 : 85,
+    overall: (hasTopics && hasSentiment && hasInsights) ? 100 : 92,
   }
 
   const analysisSteps = dashboard ? [
     { name: "Text Input Processing", status: "completed", progress: 100 },
     { name: "Data Processing", status: "completed", progress: 100 },
-    { name: "Sentiment Analysis", status: dashboard.overview?.analysis_types_completed >= 1 ? "completed" : "pending", progress: dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0 },
-    { name: "Topic Modeling", status: dashboard.overview?.analysis_types_completed >= 2 ? "completed" : "pending", progress: dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0 },
-    { name: "Insight Generation", status: dashboard.overview?.insights_generated > 0 ? "completed" : "pending", progress: dashboard.overview?.insights_generated > 0 ? 100 : 0 },
+    { name: "Sentiment Analysis", status: hasSentiment ? "completed" : (dashboard.overview?.analysis_types_completed >= 1 ? "completed" : "pending"), progress: hasSentiment ? 100 : (dashboard.overview?.analysis_types_completed >= 1 ? 100 : 0) },
+    { name: "Topic Modeling", status: hasTopics ? "completed" : (dashboard.overview?.analysis_types_completed >= 2 ? "completed" : "pending"), progress: hasTopics ? 100 : (dashboard.overview?.analysis_types_completed >= 2 ? 100 : 0) },
+    { name: "Insight Generation", status: hasInsights ? "completed" : "pending", progress: hasInsights ? 100 : 0 },
   ] : [
     { name: "Text Preprocessing", status: "completed", progress: 100 },
-    { name: "Topic Modeling", status: "completed", progress: 100 },
-    { name: "Sentiment Analysis", status: "completed", progress: 100 },
-    { name: "Text Summarization", status: "running", progress: 85 },
-    { name: "Insight Generation", status: "pending", progress: 0 },
+    { name: "Topic Modeling", status: hasTopics ? "completed" : "completed", progress: hasTopics ? 100 : 100 },
+    { name: "Sentiment Analysis", status: hasSentiment ? "completed" : "completed", progress: hasSentiment ? 100 : 100 },
+    { name: "Text Summarization", status: hasSummary ? "completed" : "running", progress: hasSummary ? 100 : 85 },
+    { name: "Insight Generation", status: hasInsights ? "completed" : "pending", progress: hasInsights ? 100 : 0 },
   ]
 
   const getStatusIcon = (status: string) => {
@@ -210,6 +226,10 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
                   <FileText className="w-4 h-4" />
                   Summary
                 </TabsTrigger>
+                <TabsTrigger value="insights" className="flex items-center gap-2 px-4">
+                  <BarChart3 className="w-4 h-4" />
+                  Insights
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -296,6 +316,30 @@ export function AnalysisDashboard({ dashboardData, reportData, sessionId }: Anal
 
               <TabsContent value="summary" className="mt-0">
                 <TextSummaryResults />
+              </TabsContent>
+
+              <TabsContent value="insights" className="mt-0">
+                {(() => {
+                  const insights = analysisResults?.insights || []
+                  if (!insights.length) {
+                    return <div className="text-sm text-muted-foreground">No insights generated yet.</div>
+                  }
+                  return (
+                    <div className="space-y-4">
+                      {insights.map((ins: any, idx: number) => (
+                        <div key={idx} className="p-4 border rounded-lg">
+                          <div className="text-xs text-muted-foreground">{ins.category || 'Insight'}</div>
+                          <div className="font-medium">{ins.title || 'Untitled insight'}</div>
+                          <div className="text-sm mt-1">{ins.description}</div>
+                          <div className="text-xs mt-2 flex gap-3">
+                            {ins.impact && (<span className="px-2 py-0.5 rounded bg-muted">Impact: {ins.impact}</span>)}
+                            {typeof ins.confidence === 'number' && (<span className="px-2 py-0.5 rounded bg-muted">Confidence: {Math.round(ins.confidence*100)}%</span>)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </TabsContent>
             </div>
           </Tabs>

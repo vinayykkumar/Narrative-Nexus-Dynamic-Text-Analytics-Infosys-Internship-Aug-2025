@@ -113,6 +113,7 @@ def run_analysis(
 
     # --- Per-topic abstractive summaries (with graceful fallback) ---
     dataset_summary: dict | None = None
+    insights: list[dict] = []
     try:
         # Load enriched CSV to get dominant_topic and original text
         df_enriched = pd.read_csv(enriched_csv)
@@ -125,7 +126,7 @@ def run_analysis(
             try:
                 all_texts = df_enriched[chosen_text_col].dropna().astype(str).tolist()
                 combined_all = " ".join(all_texts)
-                if combined_all:
+                if combined_all and combined_all.strip():
                     # Map sentences to a rough token budget (heuristic)
                     sentences = max(1, int(dataset_summary_max_sentences))
                     token_budget = 32 * sentences
@@ -135,16 +136,124 @@ def run_analysis(
                         max_sentences=sentences,
                         max_tokens=token_budget,
                     )
-                    dataset_summary = {
-                        "summary": ds_summary_text,
-                        "method_used": ds_used,
-                        "key_sentences": ds_key,
-                        "sentence_scores": ds_scores,
-                    }
+                    # Ensure we have a valid summary before storing
+                    if ds_summary_text and ds_summary_text.strip():
+                        dataset_summary = {
+                            "summary": ds_summary_text,
+                            "method_used": ds_used,
+                            "key_sentences": ds_key,
+                            "sentence_scores": ds_scores,
+                        }
+                    else:
+                        # Fallback: use first N sentences from original text
+                        from .summarization import _split_sentences
+                        fallback_sents = _split_sentences(combined_all)[:sentences]
+                        dataset_summary = {
+                            "summary": " ".join(fallback_sents),
+                            "method_used": "extractive:fallback",
+                            "key_sentences": fallback_sents,
+                            "sentence_scores": {},
+                        }
+            except Exception as e:
+                print(f"Warning: Dataset summary failed: {e}")
+                # Emergency fallback
+                try:
+                    all_texts = df_enriched[chosen_text_col].dropna().astype(str).tolist()
+                    if all_texts:
+                        from .summarization import _split_sentences
+                        combined = " ".join(all_texts)
+                        fallback_sents = _split_sentences(combined)[:max(1, int(dataset_summary_max_sentences))]
+                        dataset_summary = {
+                            "summary": " ".join(fallback_sents),
+                            "method_used": "extractive:emergency_fallback",
+                            "key_sentences": fallback_sents,
+                            "sentence_scores": {},
+                        }
+                except Exception:
+                    pass
+
+            # --- Rule-based Insights ---
+            try:
+                # Topic prevalence
+                if "dominant_topic" in df_enriched.columns:
+                    topic_counts = df_enriched["dominant_topic"].value_counts(normalize=True)
+                    if not topic_counts.empty:
+                        top_topic = int(topic_counts.idxmax())
+                        pct = float(topic_counts.iloc[0])
+                        insights.append({
+                            "category": "Topic Prevalence",
+                            "title": f"Topic {top_topic} dominates",
+                            "description": f"Topic {top_topic} appears in {pct*100:.1f}% of documents. Prioritize this theme for deeper analysis and actions.",
+                            "impact": "high" if pct >= 0.3 else "medium",
+                            "confidence": 0.9,
+                        })
+
+                # Negative skew by topic
+                if {"dominant_topic", "sentiment_category"}.issubset(df_enriched.columns):
+                    neg_skews = (
+                        df_enriched.groupby("dominant_topic")["sentiment_category"]
+                        .apply(lambda s: (s == "Negative").mean())
+                        .sort_values(ascending=False)
+                    )
+                    if len(neg_skews) > 0 and float(neg_skews.iloc[0]) >= 0.4:
+                        t = int(neg_skews.index[0])
+                        p = float(neg_skews.iloc[0])
+                        insights.append({
+                            "category": "Sentiment Risk",
+                            "title": f"Topic {t} shows elevated negative sentiment",
+                            "description": f"{p*100:.1f}% of documents under Topic {t} are negative. Investigate key drivers and mitigate pain points.",
+                            "impact": "high" if p >= 0.6 else "medium",
+                            "confidence": 0.85,
+                        })
+
+                # NRC emotion spikes (broader coverage + fallback)
+                def _emit_emo_insights(emo_vals: dict[str, float]):
+                    # Normalize keys to expected set
+                    emotions = {k: float(v) for k, v in emo_vals.items() if k in {"joy","sadness","anger","fear"}}
+                    if not emotions:
+                        return
+                    # Primary spikes with thresholds
+                    any_emitted = False
+                    for emo in ("fear", "anger", "sadness", "joy"):
+                        val = float(emotions.get(emo, 0.0))
+                        if val >= 0.2:  # strong spike
+                            insights.append({
+                                "category": "Emotion Signal",
+                                "title": f"Elevated {emo}",
+                                "description": f"Average normalized {emo} level is {val*100:.1f}%.",
+                                "impact": "high" if val >= 0.35 else "medium",
+                                "confidence": 0.85,
+                            })
+                            any_emitted = True
+                    # If nothing exceeded strong threshold, surface the top emotion if notable
+                    if not any_emitted:
+                        top_emo = max(emotions.items(), key=lambda x: x[1])
+                        if top_emo[1] >= 0.08:  # mild but notable
+                            insights.append({
+                                "category": "Emotion Pattern",
+                                "title": f"Notable {top_emo[0]}",
+                                "description": f"Dominant emotion is {top_emo[0]} at {top_emo[1]*100:.1f}% on average.",
+                                "impact": "low",
+                                "confidence": 0.7,
+                            })
+
+                emo_cols = [c for c in df_enriched.columns if c.startswith("emo_")]
+                if emo_cols:
+                    emo_means = df_enriched[emo_cols].mean().to_dict()
+                    emo_clean = {k.replace("emo_", ""): float(v) for k, v in emo_means.items()}
+                    _emit_emo_insights(emo_clean)
+                else:
+                    # Fallback to aggregated emotional_indicators if present
+                    try:
+                        agg = structured.get("sentiment_results", {}).get("emotional_indicators", {}) if isinstance(structured, dict) else {}
+                        if isinstance(agg, dict) and agg:
+                            _emit_emo_insights({k: float(v) for k, v in agg.items()})
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
-            # Persist updated structured results for reference
+        # Persist updated structured results for reference
             try:
                 import json
                 with (output_dir / "structured_results.json").open("w", encoding="utf-8") as f:
@@ -197,5 +306,6 @@ def run_analysis(
         "topic_modeling_results": structured.get("topic_modeling_results") if isinstance(structured, dict) else None,
         "sentiment_results": structured.get("sentiment_results") if isinstance(structured, dict) else None,
         "dataset_summary": dataset_summary,
-        "report_html": report_html,
+    "report_html": report_html,
+    "insights": insights,
     }

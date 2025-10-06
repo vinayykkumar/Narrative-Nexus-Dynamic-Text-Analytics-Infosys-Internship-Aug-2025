@@ -17,10 +17,20 @@ def _score_sentences_tfidf(sentences: List[str]) -> Dict[str, float]:
         return {s: 1.0 for s in sentences}
     if not sentences:
         return {}
-    vect = TfidfVectorizer(stop_words="english")
-    X = vect.fit_transform(sentences)
-    scores = X.sum(axis=1).A.ravel()
-    return {sentences[i]: float(scores[i]) for i in range(len(sentences))}
+    
+    # Handle single sentence case
+    if len(sentences) == 1:
+        return {sentences[0]: 1.0}
+    
+    try:
+        vect = TfidfVectorizer(stop_words="english", min_df=1, max_df=1.0)
+        X = vect.fit_transform(sentences)
+        scores = X.sum(axis=1).A.ravel()
+        return {sentences[i]: float(scores[i]) for i in range(len(sentences))}
+    except ValueError as e:
+        # If TF-IDF fails (e.g., all stopwords), fall back to frequency scoring
+        print(f"TF-IDF scoring failed, using frequency: {e}")
+        return _score_sentences_frequency(sentences)
 
 def _score_sentences_frequency(sentences: List[str]) -> Dict[str, float]:
     """Score sentences by raw term frequency (stopword-filtered), length-normalized.
@@ -162,22 +172,47 @@ def summarize_text(
     """
     Returns: (summary, key_sentences, sentence_scores, method_used)
     """
+    # Validate input
+    if not text or not text.strip():
+        return "", [], {}, "error:empty_input"
+    
     sentences = _split_sentences(text)
+    
+    # If no sentences extracted, return original text
+    if not sentences:
+        return text.strip(), [text.strip()], {text.strip(): 1.0}, "fallback:no_sentences"
+    
     # Choose scoring based on method to ensure UI reflects the correct scores
     if method == "frequency":
         sentence_scores = _score_sentences_frequency(sentences)
     else:
         sentence_scores = _score_sentences_tfidf(sentences)
+    
+    # Ensure we have valid scores
+    if not sentence_scores:
+        sentence_scores = {s: 1.0 for s in sentences}
+    
+    # Extract key sentences
+    max_sentences = min(max_sentences, len(sentences))  # Don't request more than available
     key_sentences = [s for s, _ in sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:max_sentences]]
 
     if method == "abstractive":
         try:
             summary = _abstractive_summary(text, max_tokens=max_tokens, model_name=model_name)
-            used = f"abstractive:{model_name}"
+            if not summary or not summary.strip():
+                # If abstractive fails to produce content, fall back to extractive
+                summary = " ".join(key_sentences)
+                used = "extractive:tfidf(abstractive_empty)"
+            else:
+                used = f"abstractive:{model_name}"
         except RuntimeError:
             # Graceful fallback if transformers isn't installed
             summary = " ".join(key_sentences)
             used = "extractive:tfidf(fallback)"
+        except Exception as e:
+            print(f"Abstractive summarization error: {e}")
+            summary = " ".join(key_sentences)
+            used = "extractive:tfidf(error_fallback)"
     elif method == "tfidf":
         summary = " ".join(key_sentences)
         used = "extractive:tfidf"

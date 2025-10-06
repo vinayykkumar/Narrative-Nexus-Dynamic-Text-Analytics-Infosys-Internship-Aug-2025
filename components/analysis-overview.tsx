@@ -196,13 +196,19 @@ export function AnalysisOverview({ dashboardData, reportData, sessionId }: Analy
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
+            <div 
+              className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => router.push('/dashboard?tab=topics')}
+            >
               <h4 className="font-medium mb-2">Explore Topic Details</h4>
               <p className="text-sm text-muted-foreground">
                 Dive deeper into the {topicData?.num_topics ?? 'identified'} topics to understand content themes
               </p>
             </div>
-            <div className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
+            <div 
+              className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => router.push('/dashboard?tab=sentiment')}
+            >
               <h4 className="font-medium mb-2">Analyze Sentiment Trends</h4>
               <p className="text-sm text-muted-foreground">
                 Review sentiment patterns and identify areas for improvement

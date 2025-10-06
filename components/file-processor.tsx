@@ -143,6 +143,7 @@ export function FileProcessor({ files }: { files: File[] }) {
   sentiment_results: result.sentiment_results || null,
   dataset_summary: result.dataset_summary || null,
   report_html: artifacts.report_html,
+  insights: result.insights || [],
       }
       localStorage.setItem('analysisResults', JSON.stringify(structuredResults))
 

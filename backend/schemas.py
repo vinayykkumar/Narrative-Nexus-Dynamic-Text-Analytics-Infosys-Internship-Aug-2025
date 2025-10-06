@@ -19,6 +19,7 @@ class AnalyzeResponse(BaseModel):
     dataset_summary: Optional[dict[str, Any]] = None
     report_html: Optional[str] = None
     message: Optional[str] = None
+    insights: Optional[list[dict[str, Any]]] = None
 
 class SummarizeRequest(BaseModel):
     text: str

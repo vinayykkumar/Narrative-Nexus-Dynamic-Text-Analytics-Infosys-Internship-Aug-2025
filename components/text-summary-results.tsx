@@ -102,17 +102,34 @@ export default function TextSummaryResults() {
         </CardHeader>
         <CardContent className="space-y-4">
           {datasetSummary ? (
-            <div className="p-4 rounded-lg border bg-blue-50">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium">Summary</div>
-                {datasetSummary.method_used && (
-                  <Badge variant="outline" className="text-xs">{datasetSummary.method_used}</Badge>
-                )}
+            <>
+              <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-medium">Summary</div>
+                  {datasetSummary.method_used && (
+                    <Badge variant="outline" className="text-xs">{datasetSummary.method_used}</Badge>
+                  )}
+                </div>
+                <p className="text-gray-800 dark:text-gray-200 leading-relaxed">{datasetSummary.summary}</p>
               </div>
-              <p className="text-gray-800 leading-relaxed">{datasetSummary.summary}</p>
-            </div>
+              
+              {datasetSummary.key_sentences && datasetSummary.key_sentences.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">Key Sentences</div>
+                  <div className="space-y-2">
+                    {datasetSummary.key_sentences.map((sentence: string, idx: number) => (
+                      <div key={idx} className="p-2 rounded border bg-muted/30 text-sm">
+                        {sentence}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="text-sm text-muted-foreground">Run an analysis to see the overall dataset summary.</div>
+            <div className="text-sm text-muted-foreground">
+              Run an analysis to see the overall dataset summary. Upload a file from the <a href="/analyze" className="text-primary underline">Analyze</a> page.
+            </div>
           )}
         </CardContent>
       </Card>
