@@ -30,6 +30,15 @@ try:
 
     # Load stopwords after ensuring they are available
     stop_words = set(stopwords.words('english'))
+
+    # Preserve common negation tokens so sentiment polarity isn't lost
+    negation_exceptions = {
+        "no", "not", "nor", "never", "none", "nobody", "nothing", "nowhere",
+        "neither", "cannot", "can't", "cant", "don't", "dont", "n't"
+    }
+    # Remove negations from the stopword set
+    stop_words = stop_words.difference(negation_exceptions)
+
     print("\nNLTK setup is complete and verified.")
 
 except Exception as e:
@@ -77,12 +86,15 @@ def clean_text(text):
         return ""
     # 1. Lowercasing
     text = text.lower()
-    # 2. Removing Punctuation
-    text = re.sub(r'[^\w\s]', '', text)
-    # 3. Tokenizing
-    words = text.split()
+    # 2. Removing punctuation but keep apostrophes so contractions (don't -> don't) remain
+    text = re.sub(r"[^\w\s']", '', text)
+    # 3. Tokenizing using NLTK tokenizer (keeps n't as token)
+    try:
+        words = word_tokenize(text)
+    except LookupError:
+        # fallback to simple split if tokenizer missing at runtime
+        words = text.split()
     # 4. Removing Stop Words and Lemmatizing
-    # NEW: Lemmatize each word after removing stop words
     lemmatized_words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
     # 5. Rejoining words
     return " ".join(lemmatized_words)

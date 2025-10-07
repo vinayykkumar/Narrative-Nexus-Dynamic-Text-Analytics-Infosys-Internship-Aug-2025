@@ -3,94 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text Analysis Platform - Data Upload</title>
+    <title>Document Analyzer Pro</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1 class="header__title">🔍 Text Analysis Platform</h1>
-            <p class="header__subtitle">Upload your text files to begin comprehensive analysis</p>
-        </header>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header__content">
+                <h1 class="header__title">📄 AI TEXT ANALYSIS</h1>
+                <p class="header__subtitle">Powerful text analysis with AI-driven insights</p>
+            </div>
+        </div>
+    </header>
 
-        <main class="upload-section">
-            <div class="upload-zone" id="uploadZone">
-                <div class="upload-zone__content">
-                    <div class="upload-zone__icon">📁</div>
-                    <h3 class="upload-zone__title">Drag & Drop Files Here</h3>
-                    <p class="upload-zone__subtitle">or click to browse files</p>
-                    <div class="upload-zone__info">
-                        <span class="upload-zone__formats">✅ Supported: TXT, DOCX, PDF, CSV, DOC</span>
-                        <span class="upload-zone__limits">📏 Max 5MB per file • 20MB total</span>
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="upload-container">
+                    <!-- File Upload Zone -->
+                    <div class="upload-zone" id="uploadZone">
+                        <div class="upload-zone__content">
+                            <div class="upload-icon">📁</div>
+                            <h3 class="upload-title">Drag & Drop Your Files</h3>
+                            <p class="upload-subtitle">or click to browse files</p>
+                            <button class="btn btn--primary upload-btn" id="uploadBtn">
+                                <span>Choose Files</span>
+                            </button>
+                            <button class="btn btn--primary" id="startAnalysisBtn">
+                                <span>Analyze File(s)</span>
+                            </button>
+
+                            <input type="file" id="fileInput" multiple accept=".txt,.docx,.pdf,.csv,.doc" hidden>
+                            <div class="upload-info">
+                                <span class="file-types">Supports: TXT, DOCX, PDF, CSV, DOC</span>
+                                <span class="file-limit">Max: 5MB per file, 20MB total</span>
+                            </div>
+                        </div>
+                        <div class="upload-overlay hidden" id="uploadOverlay">
+                            <div class="upload-overlay__content">
+                                <div class="upload-overlay__icon">⬇️</div>
+                                <p>Drop files here to analyze</p>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn btn--primary upload-zone__button" type="button" id="browseButton">
-                        📂 Choose Files
-                    </button>
-                </div>
-                <input type="file" id="fileInput" hidden accept=".txt,.csv,.docx,.pdf">
-            </div>
 
-            <div class="files-container" id="filesContainer">
-                <div class="files-header">
-                    <h3>📋 Uploaded Files</h3>
-                    <div class="files-actions">
-                        <button class="btn btn--secondary" id="clearAllButton" disabled>🗑️ Clear All</button>
-                        <button class="btn btn--success" id="startAnalysisButton" disabled>🚀 Start Analysis</button>
+                    <!-- Text Input Section -->
+                    <div class="text-input-section">
+                        <div class="text-input-header">
+                            <h3>Or Analyze Text Directly</h3>
+                            <button class="btn btn--secondary btn--sm" id="clearTextBtn">Clear</button>
+                        </div>
+                        <textarea 
+                            class="form-control text-input" 
+                            id="textInput" 
+                            placeholder="Paste your text here for instant analysis..."
+                            rows="6"
+                        ></textarea>
+                        <div class="text-input-actions">
+                            <button class="btn btn--primary" id="analyzeTextBtn">
+                                <span>🔍</span>
+                                <span>Analyze Text</span>
+                            </button>
+                            <div class="char-counter">
+                                <span id="charCount">0</span> characters
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="files-list" id="filesList"></div>
-                <div class="files-summary" id="filesSummary">
-                    <span>Total: <strong id="totalFiles">0 files</strong></span>
-                    <span>Size: <strong id="totalSize">0 bytes</strong></span>
-                </div>
-            </div>
-            
-            <p class="separator">OR</p>
-            
-            <div class="input-area">
-                <h3>Paste Text Directly for Analysis</h3>
-                <textarea id="text-input" placeholder="If you don't want to use a file, paste your text here..."></textarea>
-                <button id="analyze-text-button" class="btn btn--primary">Analyze Pasted Text</button>
-            </div>
+            </section>
 
-            <div id="results-container" class="results-area">
-                 <div id="loader" class="loader" style="display: none;"></div>
-                 <div id="report-section"></div>
-            </div>
+            <!-- File List -->
+            <section class="file-list-section hidden" id="fileListSection">
+                <div class="section-header">
+                    <h2>📋 Uploaded Files</h2>
+                    <button class="btn btn--outline btn--sm" id="clearAllBtn">Clear All</button>
+                </div>
+                <div class="file-list" id="fileList"></div>
+            </section>
 
-            <div class="file-info-grid">
-                <div class="file-info-card">
-                    <div class="file-info-card__icon">📄</div>
-                    <h4 class="file-info-card__title">TXT Files</h4>
+            <!-- Progress Section -->
+            <section class="progress-section hidden" id="progressSection">
+                <div class="progress-card">
+                    <div class="progress-header">
+                        <h3>🔄 Processing Files...</h3>
+                        <div class="progress-stats">
+                            <span id="progressText">Preparing analysis...</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-details">
+                        <span id="currentFile">-</span>
+                        <span id="progressPercentage">0%</span>
+                    </div>
                 </div>
-                <div class="file-info-card">
-                    <div class="file-info-card__icon">📊</div>
-                    <h4 class="file-info-card__title">CSV Files</h4>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section hidden" id="resultsSection">
+                <div class="section-header">
+                    <h2>📊 Analysis Results</h2>
+                    <div class="results-actions">
+                        <button class="btn btn--outline btn--sm" id="exportBtn">
+                            <span>📥</span>
+                            <span>Export Results</span>
+                        </button>
+                        <button class="btn btn--secondary btn--sm" id="copyResultsBtn">
+                            <span>📋</span>
+                            <span>Copy All</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="file-info-card">
-                    <div class="file-info-card__icon">📝</div>
-                    <h4 class="file-info-card__title">DOC/DOCX Files</h4>
-                </div>
-                <div class="file-info-card">
-                    <div class="file-info-card__icon">📕</div>
-                    <h4 class="file-info-card__title">PDF Files</h4>
-                </div>
-                <div class="file-info-card">
-                    <div class="file-info-card__icon">🖥️</div>
-                    <h4 class="file-info-card__title">PPT Files</h4>
-                </div>
-            </div>
-        </main>
+                <div class="results-grid" id="resultsGrid"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Analyzing documents...</p>
     </div>
 
-    <div class="modal" id="confirmModal" style="display: none;">
+    <!-- Confirmation Modal -->
+    <div class="modal hidden" id="confirmModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Confirm Action</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="modalCancelBtn">Cancel</button>
+                <button class="btn btn--primary" id="modalConfirmBtn">Confirm</button>
+            </div>
         </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div class="toast hidden" id="successToast">
+        <div class="toast-icon">✅</div>
+        <div class="toast-content">
+            <div class="toast-title">Success!</div>
+            <div class="toast-message" id="toastMessage">Action completed successfully</div>
+        </div>
+        <button class="toast-close" id="toastClose">✕</button>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="toast toast--error hidden" id="errorToast">
+        <div class="toast-icon">❌</div>
+        <div class="toast-content">
+            <div class="toast-title">Error</div>
+            <div class="toast-message" id="errorMessage">Something went wrong</div>
+        </div>
+        <button class="toast-close" id="errorClose">✕</button>
+    </div>
 
     <script src="app.js"></script>
-
-    <footer class="footer">
-        <p>Made by Team-3: Koustubh</p>
-    </footer>
 </body>
 </html>

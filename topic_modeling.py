@@ -1,7 +1,31 @@
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
+# Robust import: provide a helpful error only when the model is instantiated
+try:
+    import importlib
+    _st_mod = importlib.import_module('sentence_transformers')
+    SentenceTransformer = _st_mod.SentenceTransformer
+except Exception as exc:
+    class SentenceTransformer:
+        def __init__(self, *args, **kwargs):
+            raise ImportError(
+                "The 'sentence-transformers' package is not available. "
+                "Install it with: pip install -U sentence-transformers"
+            ) from exc
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
+# Define list_of_texts from the cleaned_content column if available
+try:
+    df_temp = pd.read_csv('cleaned_articles.csv')
+    df_temp.dropna(subset=['cleaned_content'], inplace=True)
+    list_of_texts = df_temp['cleaned_content'].tolist()
+except Exception:
+    list_of_texts = []
+
+vectors = model.encode(list_of_texts)
+import numpy as np
+import random
 # ==============================================================================
 # == PHASE 3: TOPIC MODELING IMPLEMENTATION ==
 # ==============================================================================
