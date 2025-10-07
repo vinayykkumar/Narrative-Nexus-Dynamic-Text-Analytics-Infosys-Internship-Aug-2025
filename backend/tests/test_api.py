@@ -9,6 +9,7 @@ os.environ["NARRATIVENEXUS_TEST_MODE"] = "1"
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app import app, load_all  # noqa: E402
+from src.preprocessing import clean_text  # noqa: E402
 
 load_all()
 
@@ -59,6 +60,29 @@ async def test_analyze_endpoint_returns_keywords_and_summaries(async_client):
     assert "topic_details" in payload
 
 
+async def test_analyze_topics_remain_contextual(async_client):
+    passage = (
+        "India's dream of high-speed rail is inching closer to reality. "
+        "The Mumbai-Ahmedabad Bullet Train project—India's first ever—is making historic progress. "
+        "And when it starts rolling, it won't just be about speed. It will be about accessibility, comfort, "
+        "and most importantly—affordable fares for the middle class. The journey begins in 2027. The first section, "
+        "between Surat and Bilimora, will be operational. The stations in Gujarat are already getting ready. "
+        "By 2028, the train will reach Thane. And by 2029, passengers will travel seamlessly between Mumbai and Ahmedabad."
+    )
+    response = await async_client.post("/analyze", json={"text": passage, "include_sentiment": False})
+    assert response.status_code == 200
+    payload = response.json()
+    analysis_topics = payload.get("topics", [])
+    cleaned = clean_text(passage)
+    for topic in analysis_topics:
+        keywords = topic.get("keywords") or []
+        for keyword in keywords:
+            keyword_norm = keyword.lower().strip().replace("-", " ")
+            if not keyword_norm:
+                continue
+            assert keyword_norm in cleaned
+
+
 async def test_report_endpoint_returns_markdown(async_client):
     response = await async_client.post(
         "/report",
@@ -78,6 +102,24 @@ async def test_report_endpoint_returns_markdown(async_client):
     assert "recommendations" in report
     assert "raw_analysis" in report
     assert isinstance(payload["markdown"], str) and payload["markdown"].strip()
+
+
+async def test_report_endpoint_can_skip_sentiment(async_client):
+    response = await async_client.post(
+        "/report",
+        json={
+            "text": "Customer feedback focuses on pricing clarity and onboarding flow.",
+            "include_sentiment": False,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    report = payload["report"]
+    assert report["sentiment_overview"] is None
+    assert report["sentiment_enabled"] is False
+    raw_analysis = report["raw_analysis"]
+    assert raw_analysis.get("sentiment") is None
+    assert raw_analysis.get("sentiment_enabled") is False
 
 
 async def test_report_pdf_endpoint_returns_pdf(async_client):

@@ -33,6 +33,84 @@ class TopicModels:
 
 
 CATEGORY_KEYWORDS: Dict[str, set[str]] = {
+    "transportation": {
+        "transportation",
+        "transport",
+        "travel",
+        "commute",
+        "commuter",
+        "vehicle",
+        "vehicles",
+        "train",
+        "trains",
+        "rail",
+        "railway",
+        "railways",
+        "bullet",
+        "bullettrain",
+        "highspeed",
+        "metro",
+        "bus",
+        "buses",
+        "tram",
+        "tramway",
+        "station",
+        "stations",
+        "airport",
+        "airports",
+        "airline",
+        "airlines",
+        "runway",
+        "logistics",
+        "freight",
+        "cargo",
+        "port",
+        "harbor",
+        "harbour",
+        "ship",
+        "shipping",
+        "route",
+        "routes",
+        "track",
+        "tracks",
+        "corridor",
+        "lane",
+        "lanes",
+        "expressway",
+        "express",
+        "highway",
+        "roads",
+        "road",
+    },
+    "infrastructure": {
+        "infrastructure",
+        "construction",
+        "build",
+        "building",
+        "development",
+        "project",
+        "projects",
+        "facility",
+        "facilities",
+        "bridge",
+        "bridges",
+        "dam",
+        "dams",
+        "pipeline",
+        "pipelines",
+        "powerplant",
+        "plant",
+        "plants",
+        "utility",
+        "utilities",
+        "expansion",
+        "upgrade",
+        "modernisation",
+        "modernization",
+        "redevelopment",
+        "smartcity",
+        "smartcities",
+    },
     "technology": {
         "technology",
         "tech",
@@ -243,6 +321,8 @@ CATEGORY_KEYWORDS: Dict[str, set[str]] = {
 }
 
 CATEGORY_GROUP_MAPPING: Dict[str, str] = {
+    "transportation": "transportation",
+    "infrastructure": "infrastructure",
     "politics": "politics",
     "technology": "technology",
     "education": "education",
@@ -256,6 +336,8 @@ CATEGORY_GROUP_MAPPING: Dict[str, str] = {
 }
 
 CATEGORY_DISPLAY: Dict[str, str] = {
+    "transportation": "Transportation",
+    "infrastructure": "Infrastructure",
     "politics": "Politics",
     "technology": "Technology",
     "education": "Education",
@@ -559,6 +641,21 @@ def get_topics_for_doc(text: str, models: Any, nmf: Optional[Any] = None, n_top:
     lda_model = topic_models.lda
     count_vectorizer = topic_models.count_vectorizer
 
+    cleaned_source = clean_text(text)
+    token_set = set(_tokenise_for_topics(text))
+
+    def _keyword_in_text(keyword: str) -> bool:
+        if not keyword:
+            return False
+        normalised = keyword.lower().strip()
+        if not normalised:
+            return False
+        normalised = normalised.replace("-", " ")
+        parts = [part for part in normalised.split() if part]
+        if parts and all(part in token_set for part in parts):
+            return True
+        return normalised in cleaned_source
+
     vec = tfidf.transform([text])
     topic_dist = nmf_model.transform(vec)[0]
     if topic_dist.ndim != 1:
@@ -613,14 +710,18 @@ def get_topics_for_doc(text: str, models: Any, nmf: Optional[Any] = None, n_top:
     enriched_topics: List[Dict[str, Any]] = []
     for topic in nmf_topics + lda_topics:
         candidate_keywords = topic.get("keywords", [])
-        classifier_input = " ".join(candidate_keywords) if candidate_keywords else text
-        classification = _classify_high_level_topic(classifier_input, candidate_keywords)
+        matched_keywords = [kw for kw in candidate_keywords if _keyword_in_text(str(kw))]
+        if candidate_keywords and not matched_keywords:
+            # Skip topics whose suggested keywords do not appear in the source text.
+            continue
+        classifier_input = " ".join(matched_keywords) if matched_keywords else text
+        classification = _classify_high_level_topic(classifier_input, matched_keywords or None)
         enriched_topics.append(
             {
                 "label": classification["label"],
                 "category_key": classification["key"],
                 "confidence": classification["confidence"],
-                "keywords": candidate_keywords,
+                "keywords": matched_keywords if matched_keywords else candidate_keywords,
                 "matched_terms": classification["matched_terms"],
                 "score": topic.get("score", 0.0),
                 "share": round(float(topic.get("share", 0.0)), 4),
@@ -631,6 +732,25 @@ def get_topics_for_doc(text: str, models: Any, nmf: Optional[Any] = None, n_top:
         )
 
     base_classification = _classify_high_level_topic(text)
+
+    if not enriched_topics:
+        fallback_keywords = [item["term"] for item in _extract_keywords(text, top_k=8)]
+        fallback_keywords = [kw for kw in fallback_keywords if _keyword_in_text(str(kw))]
+        matched_terms = base_classification.get("matched_terms", [])
+        enriched_topics.append(
+            {
+                "label": base_classification.get("label", CATEGORY_DISPLAY.get(base_classification.get("key", "other"), "Other")),
+                "category_key": base_classification.get("key", "other"),
+                "confidence": base_classification.get("confidence", 0.5),
+                "keywords": fallback_keywords,
+                "matched_terms": matched_terms,
+                "score": max(base_classification.get("confidence", 0.0), 0.3),
+                "share": 1.0,
+                "original_topic_id": None,
+                "rank": 1,
+                "source": "fallback",
+            }
+        )
 
     aggregated: Dict[str, Dict[str, Any]] = {}
     for key, label in CATEGORY_DISPLAY.items():

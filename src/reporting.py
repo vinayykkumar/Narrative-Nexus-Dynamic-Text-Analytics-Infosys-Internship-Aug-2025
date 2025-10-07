@@ -176,7 +176,12 @@ def generate_report(
     """Build a structured report dictionary from an analysis payload."""
 
     text_stats = _text_statistics(source_text)
-    sentiment_section = _prepare_sentiment_section(analysis.get("sentiment", {}))
+    sentiment_enabled = bool(analysis.get("sentiment_enabled", True))
+    sentiment_section = (
+        _prepare_sentiment_section(analysis.get("sentiment", {}))
+        if sentiment_enabled
+        else None
+    )
     topics_section = _prepare_topics_section(analysis)
     keywords_section = _prepare_keywords_section(analysis)
 
@@ -184,7 +189,7 @@ def generate_report(
     abstractive_summary = analysis.get("abstractive_summary")
 
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    dominant_sentiment = sentiment_section.get("dominant_label")
+    dominant_sentiment = sentiment_section.get("dominant_label") if isinstance(sentiment_section, dict) else None
     primary_topic = topics_section.get("primary_topic", {}) if topics_section else {}
 
     source_preview = source_text.strip().replace("\n", " ")[:240]
@@ -202,6 +207,7 @@ def generate_report(
             "dominant_sentiment": dominant_sentiment,
             "primary_topic": primary_topic,
         },
+        "sentiment_enabled": sentiment_enabled,
         "sentiment_overview": sentiment_section,
         "topic_intelligence": topics_section,
         "keyword_spotlight": keywords_section,
@@ -239,11 +245,16 @@ def report_to_markdown(report: Dict[str, Any]) -> str:
             lines.append(f"{idx}. {highlight}")
         lines.append("")
 
-    sentiment = report.get("sentiment_overview", {})
-    distribution = sentiment.get("distribution", {})
+    sentiment = report.get("sentiment_overview")
+    if isinstance(sentiment, dict):
+        distribution = sentiment.get("distribution", {})
+    else:
+        distribution = {}
     if distribution:
         lines.append("## Sentiment Overview")
-        lines.append(f"Dominant sentiment: **{sentiment.get('dominant_label', 'unknown').capitalize()}**")
+        dominant_label = sentiment.get("dominant_label") if isinstance(sentiment, dict) else None
+        if dominant_label:
+            lines.append(f"Dominant sentiment: **{str(dominant_label).capitalize()}**")
         lines.append("")
         lines.append("| Sentiment | Share | Confidence |")
         lines.append("|-----------|-------|------------|")
@@ -412,12 +423,15 @@ def report_to_pdf(report: Dict[str, Any], *, title: Optional[str] = None) -> byt
         for item in highlights:
             elements.append(Paragraph(item, bullet_style, bulletText="•"))
 
-    sentiment = report.get("sentiment_overview", {})
-    distribution = sentiment.get("distribution", {})
+    sentiment = report.get("sentiment_overview")
+    if isinstance(sentiment, dict):
+        distribution = sentiment.get("distribution", {})
+    else:
+        distribution = {}
     if distribution:
         elements.append(Spacer(1, 14))
         elements.append(Paragraph("Sentiment Overview", heading_style))
-        dominant = sentiment.get("dominant_label")
+        dominant = sentiment.get("dominant_label") if isinstance(sentiment, dict) else None
         if dominant:
             elements.append(
                 Paragraph(

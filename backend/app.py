@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -40,12 +40,14 @@ sentiment_models: Optional[SentimentInferenceModels] = None
 
 class TextIn(BaseModel):
     text: str
+    include_sentiment: bool = True
 
 
 class ReportIn(BaseModel):
     text: str
     include_markdown: bool = False
     include_analysis: bool = False
+    include_sentiment: bool = True
     metadata: Optional[dict] = None
     evaluation: Optional[dict] = None
 
@@ -124,13 +126,19 @@ async def topics(payload: TextIn, n_topics: Optional[int] = 6):
 async def analyze(payload: TextIn):
     txt = payload.text
     cleaned = clean_text(txt)
-    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    include_sentiment = getattr(payload, "include_sentiment", True)
+
+    sentiment_payload = analyze_sentiment_text(cleaned, sentiment_models) if include_sentiment else None
     insights = generate_insights(
         txt,
-        sent,
+        sentiment_payload,
         topic_models=topic_models,
-        sentiment_models=sentiment_models,
+        sentiment_models=sentiment_models if include_sentiment else None,
     )
+
+    if not include_sentiment:
+        insights["sentiment"] = None
+    insights["sentiment_enabled"] = bool(include_sentiment)
     return insights
 
 
@@ -138,13 +146,17 @@ async def analyze(payload: TextIn):
 async def report(payload: ReportIn):
     txt = payload.text
     cleaned = clean_text(txt)
-    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    include_sentiment = getattr(payload, "include_sentiment", True)
+    sentiment_payload = analyze_sentiment_text(cleaned, sentiment_models) if include_sentiment else None
     insights = generate_insights(
         txt,
-        sent,
+        sentiment_payload,
         topic_models=topic_models,
-        sentiment_models=sentiment_models,
+        sentiment_models=sentiment_models if include_sentiment else None,
     )
+    if not include_sentiment:
+        insights["sentiment"] = None
+    insights["sentiment_enabled"] = bool(include_sentiment)
     report_payload = generate_report(
         txt,
         insights,
@@ -166,13 +178,17 @@ async def report_pdf(payload: ReportIn):
         raise HTTPException(status_code=400, detail="Text is required to generate the report.")
 
     cleaned = clean_text(txt)
-    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    include_sentiment = getattr(payload, "include_sentiment", True)
+    sentiment_payload = analyze_sentiment_text(cleaned, sentiment_models) if include_sentiment else None
     insights = generate_insights(
         txt,
-        sent,
+        sentiment_payload,
         topic_models=topic_models,
-        sentiment_models=sentiment_models,
+        sentiment_models=sentiment_models if include_sentiment else None,
     )
+    if not include_sentiment:
+        insights["sentiment"] = None
+    insights["sentiment_enabled"] = bool(include_sentiment)
     report_payload = generate_report(
         txt,
         insights,
@@ -225,7 +241,10 @@ def extract_text_from_file(file: UploadFile) -> str:
 
 
 @app.post("/report/pdf/file")
-async def report_pdf_from_file(file: UploadFile = File(...)):
+async def report_pdf_from_file(
+    file: UploadFile = File(...),
+    include_sentiment: bool = Form(True),
+):
     try:
         text = extract_text_from_file(file)
     except ValueError as exc:
@@ -235,13 +254,16 @@ async def report_pdf_from_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No text extracted from the uploaded file.")
 
     cleaned = clean_text(text)
-    sent = analyze_sentiment_text(cleaned, sentiment_models)
+    sentiment_payload = analyze_sentiment_text(cleaned, sentiment_models) if include_sentiment else None
     insights = generate_insights(
         text,
-        sent,
+        sentiment_payload,
         topic_models=topic_models,
-        sentiment_models=sentiment_models,
+        sentiment_models=sentiment_models if include_sentiment else None,
     )
+    if not include_sentiment:
+        insights["sentiment"] = None
+    insights["sentiment_enabled"] = bool(include_sentiment)
     report_payload = generate_report(text, insights, metadata={"filename": file.filename})
 
     title = file.filename.rsplit(".", 1)[0] if file.filename else None
@@ -253,20 +275,27 @@ async def report_pdf_from_file(file: UploadFile = File(...)):
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=headers)
 
 @app.post("/analyze-file")
-async def analyze_file(file: UploadFile = File(...)):
+async def analyze_file(request: Request, file: UploadFile = File(...)):
     try:
+        include_sentiment_param = request.query_params.get("include_sentiment")
+        include_sentiment = True
+        if include_sentiment_param is not None:
+            include_sentiment = include_sentiment_param.lower() == "true"
         text = extract_text_from_file(file)
         if not text.strip():
             return {"error": "No text extracted from file."}
 
         cleaned = clean_text(text)
-        sent = analyze_sentiment_text(cleaned, sentiment_models)
+        sentiment_payload = analyze_sentiment_text(cleaned, sentiment_models) if include_sentiment else None
         insights = generate_insights(
             text,
-            sent,
+            sentiment_payload,
             topic_models=topic_models,
-            sentiment_models=sentiment_models,
+            sentiment_models=sentiment_models if include_sentiment else None,
         )
+        if not include_sentiment:
+            insights["sentiment"] = None
+        insights["sentiment_enabled"] = bool(include_sentiment)
         return insights
 
     except Exception as e:
