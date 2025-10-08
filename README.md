@@ -1,3 +1,4 @@
+# Narrative-Nexus-Dynamic-Text-Analytics-Infosys-Internship-Aug-2025
 # 🌌 Smart DataSet Analyzer – Advanced NLP Text Analysis Platform
 
 **AI-powered text analysis platform** — upload `.txt`, `.csv`, or `.docx` files to instantly get **sentiment analysis**, **topic modeling**, **key terms**, and **downloadable PDF reports**.
