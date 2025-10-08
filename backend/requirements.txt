@@ -21,6 +21,10 @@ fastapi
 uvicorn
 pydantic
 python-multipart
+motor
+python-jose[cryptography]
+passlib
+email-validator
 
 # File parsing
 docx2txt
@@ -28,6 +32,9 @@ python-docx
 PyPDF2
 # Reporting
 reportlab
+
+# Visualization
+matplotlib
 
 # Utils
 tqdm

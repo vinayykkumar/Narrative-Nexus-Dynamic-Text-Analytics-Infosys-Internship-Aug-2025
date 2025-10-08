@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import {
   CircleX,
   FilePlusIcon,
@@ -34,6 +35,12 @@ const ALLOWED_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+const NOTICE_STYLES = {
+  success: "bg-emerald-500/20 border-emerald-400/40 text-emerald-200",
+  warning: "bg-amber-500/20 border-amber-400/40 text-amber-200",
+  info: "bg-sky-500/20 border-sky-400/40 text-sky-100",
+};
+
 const formatProbability = (value) => {
   if (typeof value === "number") return value.toFixed(2);
   const num = Number(value);
@@ -66,6 +73,9 @@ const Analysis = () => {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [includeSentiment, setIncludeSentiment] = useState(true);
+  const [saveNotice, setSaveNotice] = useState(null);
+
+  const { getAuthHeaders, isAuthenticated } = useAuth();
 
   const {
     setAnalysisData = () => {},
@@ -105,6 +115,7 @@ const Analysis = () => {
     setSelectedKeyword(null);
     setSubmittedText("");
     setPdfError("");
+    setSaveNotice(null);
   };
 
   const validateFile = (selectedFile) => {
@@ -159,6 +170,7 @@ const Analysis = () => {
     setSelectedTopicKey(null);
     setSelectedKeyword(null);
     setSubmittedText(file ? "" : trimmedText);
+    setSaveNotice(null);
 
     const scrollTimeout = setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -166,22 +178,27 @@ const Analysis = () => {
 
     try {
       let response;
+      const authHeaders = getAuthHeaders();
 
       if (file) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("include_sentiment", includeSentiment ? "true" : "false");
+        const requestOptions = {
+          method: "POST",
+          body: formData,
+        };
+        if (Object.keys(authHeaders).length > 0) {
+          requestOptions.headers = authHeaders;
+        }
         response = await fetch(
           `${API_BASE}/analyze-file?include_sentiment=${includeSentiment ? "true" : "false"}`,
-          {
-            method: "POST",
-            body: formData,
-          }
+          requestOptions
         );
       } else {
         response = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({ text: trimmedText, include_sentiment: includeSentiment }),
         });
       }
@@ -209,6 +226,14 @@ const Analysis = () => {
       const hasSentimentData = Boolean(sentimentDetails && Object.keys(sentimentDetails).length > 0);
       const normalizedSentiment = hasSentimentData ? sentimentDetails : null;
       const normalizedResult = { ...result, sentiment: normalizedSentiment };
+
+      if (result.saved) {
+        setSaveNotice({ type: "success", message: "Analysis saved to your dashboard." });
+      } else if (isAuthenticated) {
+        setSaveNotice({ type: "warning", message: "We couldn't save this analysis automatically. Please try again." });
+      } else {
+        setSaveNotice({ type: "info", message: "Sign in to save analyses to your dashboard." });
+      }
 
       setAnalysis(normalizedResult);
       setAnalysisData({
@@ -259,6 +284,7 @@ const Analysis = () => {
 
     try {
       let response;
+      const authHeaders = getAuthHeaders();
       const defaultTitle =
         (analysis?.primary_topic?.label ?? analysis?.topics?.[0]?.label ?? "Insight Report").toString();
 
@@ -266,14 +292,18 @@ const Analysis = () => {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("include_sentiment", includeSentiment ? "true" : "false");
-        response = await fetch(`${API_BASE}/report/pdf/file`, {
+        const options = {
           method: "POST",
           body: formData,
-        });
+        };
+        if (Object.keys(authHeaders).length > 0) {
+          options.headers = authHeaders;
+        }
+        response = await fetch(`${API_BASE}/report/pdf/file`, options);
       } else {
         response = await fetch(`${API_BASE}/report/pdf`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({
             text: submittedText,
             include_sentiment: includeSentiment,
@@ -532,6 +562,27 @@ const showSentimentSection = Boolean(analysis?.sentiment);
 
 
         <div ref={resultRef} className="space-y-6">
+          {saveNotice && (
+            <div
+              className={`p-4 rounded-xl border ${
+                NOTICE_STYLES[saveNotice.type] ?? "bg-white/10 border-white/20 text-gray-200"
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm leading-relaxed">{saveNotice.message}</span>
+                {saveNotice.type === "success" ? (
+                  <a href="/dashboard" className="text-sm font-semibold text-white underline">
+                    View dashboard
+                  </a>
+                ) : null}
+                {saveNotice.type === "info" ? (
+                  <a href="/login" className="text-sm font-semibold text-white underline">
+                    Sign in
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          )}
           {analysis && !loading && (
             <div className="flex flex-col gap-6">
               <div className="p-5 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
