@@ -91,3 +91,13 @@ ml/t5_summarization_model/
 data/*.zip
 data/*.tar
 data/*.tar.gz
+
+# Large binary artifacts
+models/*.pkl
+models/*.h5
+models/*.joblib
+models/*.pt
+models/*.onnx
+*.ipynb
+*.pdf
+reports/*.docx
