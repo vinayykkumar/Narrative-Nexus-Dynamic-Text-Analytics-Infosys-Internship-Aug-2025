@@ -1,0 +1,90 @@
+{
+  "algo": "nmf",
+  "k": 6,
+  "top_words": {
+    "0": [
+      "raises",
+      "concerns",
+      "also raises",
+      "also",
+      "raises ethical",
+      "ai also",
+      "advantages",
+      "ethical concerns",
+      "despite",
+      "ethical",
+      "advantages ai",
+      "despite advantages"
+    ],
+    "1": [
+      "applications",
+      "finance education",
+      "applications expanding",
+      "entertainment ai",
+      "rapidly",
+      "education entertainment",
+      "finance",
+      "expanding rapidly",
+      "expanding",
+      "healthcare finance",
+      "education",
+      "healthcare"
+    ],
+    "2": [
+      "where",
+      "where ai",
+      "personalized recommendations",
+      "making",
+      "recommendations",
+      "personalized",
+      "making difference",
+      "area where",
+      "ai making",
+      "area",
+      "another area",
+      "difference personalized"
+    ],
+    "3": [
+      "human",
+      "productivity",
+      "productivity also",
+      "reduces",
+      "only increases",
+      "only",
+      "increases productivity",
+      "also reduces",
+      "errors",
+      "human errors",
+      "reduces human",
+      "increases"
+    ],
+    "4": [
+      "ai",
+      "way",
+      "transforming",
+      "transforming way",
+      "way industries",
+      "operate",
+      "operate across",
+      "page",
+      "globe",
+      "intelligence ai",
+      "industries",
+      "intelligence"
+    ],
+    "5": [
+      "vision",
+      "vision key",
+      "subfields",
+      "subfields driving",
+      "revolution",
+      "natural language",
+      "machine learning",
+      "natural",
+      "learning natural",
+      "processing computer",
+      "machine",
+      "processing"
+    ]
+  }
+}

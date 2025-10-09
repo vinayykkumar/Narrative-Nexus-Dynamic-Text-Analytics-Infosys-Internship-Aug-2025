@@ -1,0 +1,99 @@
+{
+  "accuracy": 0.8421052631578947,
+  "precision_macro": 0.8475835472843586,
+  "recall_macro": 0.8430741224539889,
+  "f1_macro": 0.8433354813978773,
+  "roc_auc_macro": 0.9823505536847974,
+  "per_class": {
+    "Backend Developer": {
+      "precision": 0.6666666666666666,
+      "recall": 0.5517241379310345,
+      "f1": 0.6037735849056604,
+      "support": 29
+    },
+    "Database Administrator": {
+      "precision": 0.8666666666666667,
+      "recall": 0.9285714285714286,
+      "f1": 0.896551724137931,
+      "support": 28
+    },
+    "DevOps Engineer": {
+      "precision": 0.8787878787878788,
+      "recall": 0.9354838709677419,
+      "f1": 0.90625,
+      "support": 31
+    },
+    "Django Developer": {
+      "precision": 0.9310344827586207,
+      "recall": 0.8709677419354839,
+      "f1": 0.9,
+      "support": 31
+    },
+    "Flutter Developer": {
+      "precision": 0.9090909090909091,
+      "recall": 0.967741935483871,
+      "f1": 0.9375,
+      "support": 31
+    },
+    "Full Stack Developer": {
+      "precision": 0.6875,
+      "recall": 0.7857142857142857,
+      "f1": 0.7333333333333333,
+      "support": 28
+    },
+    "Java Developer": {
+      "precision": 0.7241379310344828,
+      "recall": 0.65625,
+      "f1": 0.6885245901639344,
+      "support": 32
+    },
+    "JavaScript Developer": {
+      "precision": 0.8666666666666667,
+      "recall": 0.7878787878787878,
+      "f1": 0.8253968253968254,
+      "support": 33
+    },
+    "Machine Learning": {
+      "precision": 1.0,
+      "recall": 0.9032258064516129,
+      "f1": 0.9491525423728814,
+      "support": 31
+    },
+    "Network Administrator": {
+      "precision": 0.9655172413793104,
+      "recall": 0.9655172413793104,
+      "f1": 0.9655172413793104,
+      "support": 29
+    },
+    "Node js developer": {
+      "precision": 0.8529411764705882,
+      "recall": 0.90625,
+      "f1": 0.8787878787878788,
+      "support": 32
+    },
+    "PHP Developer": {
+      "precision": 0.8666666666666667,
+      "recall": 0.8387096774193549,
+      "f1": 0.8524590163934426,
+      "support": 31
+    },
+    "Software Engineer": {
+      "precision": 0.575,
+      "recall": 0.71875,
+      "f1": 0.6388888888888888,
+      "support": 32
+    },
+    "Wordpress Developer": {
+      "precision": 0.9230769230769231,
+      "recall": 0.9230769230769231,
+      "f1": 0.9230769230769231,
+      "support": 26
+    },
+    "iOS Developer": {
+      "precision": 1.0,
+      "recall": 0.90625,
+      "f1": 0.9508196721311475,
+      "support": 32
+    }
+  }
+}

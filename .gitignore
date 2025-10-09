@@ -1,0 +1,44 @@
+ 
+# -------------------------
+# Node / Frontend ignores
+# -------------------------
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.vercel/
+.parcel-cache/
+.vite/
+coverage/
+
+# -------------------------
+# Python / Backend ignores
+# -------------------------
+venv/
+.venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# -------------------------
+# Data / Large files (optional)
+# -------------------------
+*.sqlite3
+*.db
+*.h5
+*.pkl
+
+# -------------------------
+# OS / Editor junk
+# -------------------------
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
