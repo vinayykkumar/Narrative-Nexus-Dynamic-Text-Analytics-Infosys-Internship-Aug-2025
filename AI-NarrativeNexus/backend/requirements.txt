@@ -1,0 +1,41 @@
+
+# Data Handling
+pandas
+numpy
+
+# Machine Learning & NLP
+scikit-learn
+nltk
+gensim
+spacy
+joblib
+torch
+tensorflow
+transformers
+sentence-transformers
+textblob
+
+
+# Backend
+fastapi
+uvicorn
+pydantic
+python-multipart
+motor
+python-jose[cryptography]
+passlib
+email-validator
+
+# File parsing
+docx2txt
+python-docx
+PyPDF2
+# Reporting
+reportlab
+
+# Visualization
+matplotlib
+
+# Utils
+tqdm
+python-dotenv
