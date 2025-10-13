@@ -9,10 +9,11 @@ dependencies:
   - numpy
   - pandas
   - scikit-learn
-  - pyarrow      # conda-forge binary; avoids many DLL issues
+  - pyarrow
   - matplotlib
   - pillow
   - spacy
+  - spacy-model-en_core_web_sm    # <-- add this (conda-forge provides it)
   - nltk
   - joblib
   - ipykernel
@@ -26,9 +27,12 @@ dependencies:
   - transformers
   - sentencepiece
   - huggingface-hub
+  - pytorch                       
   - pip:
       - streamlit==1.49.1
       - streamlit-option-menu==0.4.0
-      - streamlit_chat  # optional if you use it
+      - streamlit_chat
       - tokenizers
-      - torchvision
+      - torchvision               
+      - python-docx
+      - pdfplumber

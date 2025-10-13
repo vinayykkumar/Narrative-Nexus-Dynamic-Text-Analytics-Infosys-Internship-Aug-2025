@@ -8,6 +8,16 @@ import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import NMF, LatentDirichletAllocation
 
+import numpy as np
+import scipy.sparse as sp
+
+def safe_array(X):
+    """Convert deprecated np.matrix / sparse matrix to safe ndarray."""
+    if isinstance(X, np.matrix):
+        return np.asarray(X)
+    if sp.issparse(X):
+        return X.toarray()
+    return np.array(X)
 
 # --------- Utilities ---------
 # Robust make_docs_from_text: chunk by sentences -> group into docs of approx words_per_doc
@@ -142,6 +152,7 @@ def top_terms_per_topic(model, feature_names: List[str], topn: int = 10) -> List
 
 def doc_topic_distribution(model, X) -> np.ndarray:
     """(n_docs, n_topics) responsibility matrix."""
+    X = safe_array(X)
     return model.transform(X)
 
 # --------- Save / Load ---------

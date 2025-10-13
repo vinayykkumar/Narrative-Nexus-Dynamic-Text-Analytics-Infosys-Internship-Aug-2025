@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 from io import StringIO
 from typing import Dict, Any
 
@@ -43,13 +44,47 @@ def _read_csv_preview(file, nrows: int = 800, encodings=("utf-8", "latin1")) -> 
         raise last_err
     raise ValueError("Could not read CSV.")
 
+def _read_docx(file) -> str:
+    try:
+        from docx import Document
+        try:
+            file.seek(0)
+        except Exception:
+            pass
+        doc = Document(file)
+        return "\n".join(p.text for p in doc.paragraphs)
+    except Exception:
+        raise RuntimeError("Install `python-docx` for .docx support: pip install python-docx")
+
+def _read_pdf(file) -> tuple[str, list[str]]:
+    try:
+        import pdfplumber
+    except ImportError:
+        raise RuntimeError("Install `pdfplumber` for .pdf support: pip install pdfplumber")
+
+    full = []
+    pages = []
+    try:
+        file.seek(0)
+    except Exception:
+        pass
+
+    with pdfplumber.open(file) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text() or ""
+            pages.append(page_text.strip())
+            full.append(page_text)
+
+    return ("\n\n".join(full).strip(), pages)
+
+
 def read_file(uploaded_file, *, csv_rows_preview: int = 800, csv_char_cap: int = 150_000) -> Dict[str, Any]:
     """
-    Reads .txt, .csv, .docx safely and returns:
+    Reads .txt, .csv, .docx, .pdf safely and returns:
       {
         "text": str,
         "df_preview": pd.DataFrame|None,
-        "meta": {"source_type": "txt|csv|docx"}
+        "meta": {"source_type": "txt|csv|docx|pdf"}
       }
     """
     name = (uploaded_file.name or "").lower()
@@ -58,23 +93,22 @@ def read_file(uploaded_file, *, csv_rows_preview: int = 800, csv_char_cap: int =
         return {"text": _read_txt(uploaded_file), "df_preview": None, "meta": {"source_type": "txt"}}
 
     if name.endswith(".csv"):
-        # Read small preview and flatten to text (keeps memory small)
         df = _read_csv_preview(uploaded_file, nrows=csv_rows_preview)
         text = _csv_to_text(df, max_chars=csv_char_cap)
         return {"text": text, "df_preview": df, "meta": {"source_type": "csv"}}
 
     if name.endswith(".docx"):
-        # Lazy import so users without docx still can run for txt/csv
-        try:
-            from docx import Document
-            try:
-                uploaded_file.seek(0)
-            except Exception:
-                pass
-            doc = Document(uploaded_file)
-            text = "\n".join(p.text for p in doc.paragraphs)
-        except Exception:
-            raise RuntimeError("Install `python-docx` for .docx support: pip install python-docx")
+        text = _read_docx(uploaded_file)
         return {"text": text, "df_preview": None, "meta": {"source_type": "docx"}}
 
-    raise ValueError("Unsupported file format. Please upload .txt, .csv, or .docx")
+    if name.endswith(".pdf"):
+        full_text, pages = _read_pdf(uploaded_file)
+        return {
+            "text": full_text,
+            "pages": pages,                      
+            "df_preview": None,
+            "meta": {"source_type": "pdf"}
+        }
+
+
+    raise ValueError("Unsupported file format. Please upload .txt, .csv, .docx, or .pdf")

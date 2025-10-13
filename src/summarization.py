@@ -1,617 +1,390 @@
-# src/summarization.py
-from __future__ import annotations
-from typing import List, Optional
+"""
+Hybrid summarizer: extractive (always) + abstractive (optional).
+CPU-optimized with smart fallbacks.
+"""
 import re
 import numpy as np
+from typing import List, Dict, Optional
 from functools import lru_cache
 
 
+# ============ Extractive Summarization (MMR) ============
 
-# ---- Configuration defaults ----
-HF_ABS_DEFAULT = "sshleifer/distilbart-cnn-12-6"  # small, reasonably fast
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"            # sentence-transformers small model
-
-# ---- Robust sentence splitting & chunking ----
-_SENT_SPLIT = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9])')
-
-def split_sentences(text: str, min_words: int = 5, fallback_chunk: int = 60) -> List[str]:
-    """
-    Split text into reasonable sentence-like units.
-    - Normalizes newlines -> periods
-    - Splits on punctuation; if punctuation missing returns chunked segments
-    - Filters extremely short fragments (< min_words)
-    """
-    text = (text or "").strip()
-    if not text:
-        return []
-
-    # Normalize newlines, multiple spaces
-    text = re.sub(r'\n+', '. ', text)
-    text = re.sub(r'\s+', ' ', text)
-
-    # Primary split: punctuation-aware
-    sents = _SENT_SPLIT.split(text)
-    cleaned = []
-    for s in sents:
-        s = s.strip()
-        if not s:
-            continue
-        # trim stray non-word start/end
-        s = re.sub(r'^[^A-Za-z0-9]+|[^A-Za-z0-9]+$', '', s).strip()
-        if not s:
-            continue
-        # keep longer fragments only; short fragments will be dropped
-        if len(s.split()) >= min_words:
-            cleaned.append(s)
-
-    # If nothing parsed as sentences (no punctuation or all too short), fallback chunking
-    if not cleaned:
-        words = text.split()
-        cleaned = [" ".join(words[i:i + fallback_chunk]) for i in range(0, len(words), fallback_chunk)]
-        cleaned = [c for c in cleaned if len(c.split()) >= min_words]
-
-    return cleaned
-
-# ---- Helper to further chunk overly long sentences ----
-def _word_chunk_sentences(sents: List[str], chunk_words: int = 60) -> List[str]:
-    out = []
-    for s in sents:
-        words = s.split()
-        if len(words) <= chunk_words:
-            out.append(s)
-        else:
-            for i in range(0, len(words), chunk_words):
-                piece = " ".join(words[i:i + chunk_words])
-                if len(piece.split()) >= 5:
-                    out.append(piece)
-    return out
-
-# ---- TF-IDF + MMR utilities (fast default extractive) ----
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-def mmr_select(sentences: List[str], doc_scores: np.ndarray, k: int = 5, lambda_param: float = 0.7) -> List[str]:
-    """
-    MMR sentence selection to get relevance + diversity.
-    - sentences: list of candidate sentence strings
-    - doc_scores: 1d relevance scores (higher=more relevant)
-    - Returns up to k selected sentences in original order
-    """
-    if not sentences:
-        return []
-
-    n = len(sentences)
-    k = min(k, n)
-    vec = TfidfVectorizer(stop_words='english', max_features=2000)
-    X = vec.fit_transform(sentences)  # sparse
-    sim = cosine_similarity(X)        # dense
-
-    doc_scores = np.asarray(doc_scores).ravel()
-
-    selected_idx = []
-    remaining = list(range(n))
-
-    # pick first by highest relevance
-    first = int(np.argmax(doc_scores))
-    selected_idx.append(first)
-    remaining.remove(first)
-
-    while len(selected_idx) < k and remaining:
-        mmr_scores = []
-        for j in remaining:
-            relevance = doc_scores[j]
-            diversity = max(sim[j][selected_idx]) if selected_idx else 0.0
-            mmr_score = lambda_param * relevance - (1.0 - lambda_param) * diversity
-            mmr_scores.append((mmr_score, j))
-        mmr_scores.sort(reverse=True)
-        _, pick = mmr_scores[0]
-        selected_idx.append(pick)
-        remaining.remove(pick)
-
-    selected_idx_sorted = sorted(selected_idx)
-    return [sentences[i] for i in selected_idx_sorted]
-
-# ---- Paste these into src/summarization.py ----
-from typing import List
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-def dedupe_sentences(sentences: List[str], threshold: float = 0.78) -> List[str]:
-    """
-    Remove near-duplicate sentences from 'sentences' preserving order.
-    Uses a small TF-IDF and cosine similarity threshold.
-    """
-    if not sentences:
-        return []
-    try:
-        vec = TfidfVectorizer(stop_words='english', max_features=2000)
-        X = vec.fit_transform(sentences)
-        keep = []
-        for i in range(len(sentences)):
-            if not keep:
-                keep.append(i)
-                continue
-            sims = cosine_similarity(X[i], X[keep]).ravel()
-            if sims.max() < threshold:
-                keep.append(i)
-        return [sentences[i] for i in keep]
-    except Exception:
-        # if anything goes wrong, return original list (best-effort)
-        return sentences
-
-
-def summarize_with_mmr(
-    text: str,
-    k: int = 5,
-    min_words: int = 6,
-    chunk_words: int = 60,
-    lambda_param: float = 0.7,
-    use_embeddings: bool = False,
-    embedding_model: str = EMBEDDING_MODEL
-) -> str:
-    """
-    Improved extractive summarization using TF-IDF + MMR with:
-      - stronger sentence filtering (min_words default 6),
-      - greedy merge of short fragments,
-      - deduplication of chosen sentences,
-      - optional embeddings-based fallback if sentence-transformers is available.
-
-    Parameters:
-      text: source text
-      k: target number of sentences to select
-      min_words: minimum words for a candidate sentence (raise to avoid tiny fragments)
-      chunk_words: chunk length for fallback chunking
-      lambda_param: MMR tradeoff (0..1)
-      use_embeddings: if True and sentence-transformers installed, prefer embedding-MMR
-      embedding_model: embedding model name for sentence-transformers
-    """
-    if not text or not text.strip():
-        return ""
-
-    # --- 1) Sentence splitting (stricter) ---
-    sents = split_sentences(text, min_words=max(3, min_words), fallback_chunk=chunk_words)
-    if not sents:
-        return ""
-
-    # Merge neighboring short fragments to reduce noise (greedy)
-    if len(sents) > 1:
-        merged = []
-        buf = ""
-        for s in sents:
-            if len(s.split()) < min_words:
-                buf = (buf + " " + s).strip()
-            else:
-                if buf:
-                    merged.append((buf + " " + s).strip())
-                    buf = ""
-                else:
-                    merged.append(s)
-        if buf:
-            merged.append(buf)
-        sents = merged
-
-    # If after merging we have too few candidates for target k, chunk long sentences for more granularity
-    avg_words = sum(len(s.split()) for s in sents) / max(1, len(sents))
-    if len(sents) <= k and avg_words > (chunk_words * 1.5):
-        sents = _word_chunk_sentences(sents, chunk_words=chunk_words)
-
-    # final guard: filter extremely short candidates
-    sents = [s for s in sents if len(s.split()) >= max(2, int(min_words/2))]
-    if not sents:
-        return ""
-
-    # --- 2) Option A: Embedding-MMR (if requested and available) ---
-    if use_embeddings:
-        try:
-            from sentence_transformers import SentenceTransformer
-            import numpy as _np
-            model = SentenceTransformer(embedding_model)
-            embeddings = model.encode(sents, convert_to_numpy=True, show_progress_bar=False)
-            doc_emb = embeddings.mean(axis=0, keepdims=True)
-            relevance = cosine_similarity(embeddings, doc_emb).ravel()
-            # MMR with embeddings
-            n = len(sents)
-            k_local = min(k, n)
-            sim = cosine_similarity(embeddings)
-            selected_idx = []
-            remaining = list(range(n))
-            first = int(_np.argmax(relevance))
-            selected_idx.append(first)
-            remaining.remove(first)
-            while len(selected_idx) < k_local and remaining:
-                mmr_scores = []
-                for j in remaining:
-                    diversity = max(sim[j][selected_idx]) if selected_idx else 0.0
-                    mmr_score = lambda_param * relevance[j] - (1.0 - lambda_param) * diversity
-                    mmr_scores.append((mmr_score, j))
-                mmr_scores.sort(reverse=True)
-                _, pick = mmr_scores[0]
-                selected_idx.append(pick)
-                remaining.remove(pick)
-            selected_idx_sorted = sorted(selected_idx)
-            chosen = [sents[i] for i in selected_idx_sorted]
-            # dedupe chosen
-            chosen = dedupe_sentences(chosen, threshold=0.78)
-            return " ".join(chosen)
-        except Exception:
-            # graceful fallback to TF-IDF method below
-            pass
-
-    # --- 3) TF-IDF MMR (default and robust fallback) ---
-    try:
-        vec = TfidfVectorizer(stop_words='english', max_features=3000)
-        X = vec.fit_transform(sents)  # shape (n_sents, vocab)
-        # doc_vec: average dense vector
-        doc_vec = np.asarray(X.mean(axis=0)).ravel()
-        scores = cosine_similarity(X, doc_vec.reshape(1, -1)).ravel()
-    except Exception:
-        # If TF-IDF fails for any reason, return first k cleaned sentences
-        return " ".join(sents[:k])
-
-    # apply MMR selection using existing mmr_select (keeps diversity)
-    chosen = mmr_select(sents, scores, k=min(k, len(sents)), lambda_param=lambda_param)
-
-    # --- 4) Deduplicate near-duplicates (final clean) ---
-    chosen = dedupe_sentences(chosen, threshold=0.78)
-
-    # Keep original order of chosen sentences and return
-    return " ".join(chosen)
-# ---- End paste ----
-
-
-# ---- Optional: embeddings + MMR (higher quality; requires sentence-transformers) ----
-def summarize_with_embeddings_mmr(text: str, k: int = 5, model_name: str = EMBEDDING_MODEL) -> str:
-    """
-    Higher-quality extractive summarizer using sentence embeddings + MMR.
-    Install: pip install sentence-transformers
-    """
-    try:
-        from sentence_transformers import SentenceTransformer
-    except Exception as e:
-        raise RuntimeError("sentence-transformers required for embedding MMR. pip install sentence-transformers") from e
-
-    sents = split_sentences(text)
-    if not sents:
-        return ""
-
-    # chunk extremely long sentences
-    sents = _word_chunk_sentences(sents, chunk_words=60)
-
-    model = SentenceTransformer(model_name)
-    embeddings = model.encode(sents, convert_to_numpy=True, show_progress_bar=False)
-    doc_emb = embeddings.mean(axis=0, keepdims=True)
-    relevance = cosine_similarity(embeddings, doc_emb).ravel()
-    # MMR using embedding similarity for diversity
-    n = len(sents)
-    k = min(k, n)
-    sim = cosine_similarity(embeddings)
-    selected_idx = []
-    remaining = list(range(n))
-    first = int(np.argmax(relevance))
-    selected_idx.append(first)
-    remaining.remove(first)
-    while len(selected_idx) < k and remaining:
-        mmr_scores = []
-        for j in remaining:
-            diversity = max(sim[j][selected_idx]) if selected_idx else 0.0
-            mmr_score = 0.7 * relevance[j] - 0.3 * diversity
-            mmr_scores.append((mmr_score, j))
-        mmr_scores.sort(reverse=True)
-        _, pick = mmr_scores[0]
-        selected_idx.append(pick)
-        remaining.remove(pick)
-    selected_idx_sorted = sorted(selected_idx)
-    return " ".join([sents[i] for i in selected_idx_sorted])
-
-# ---- Abstractive: cached model loader + two-stage polish ----
-@lru_cache(maxsize=2)
-def _load_summarizer(model_name: str = HF_ABS_DEFAULT):
-    """
-    Cached loader for HF seq2seq summarization models.
-    Moves model to CUDA if available.
-    """
-    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-    import torch
-    tok = AutoTokenizer.from_pretrained(model_name)
-    mdl = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    mdl.eval()
-    if torch.cuda.is_available():
-        mdl.to("cuda")
-    return tok, mdl
-
-def summarize_abstractive_polish(
-    text: str,
-    model_name: str = HF_ABS_DEFAULT,
-    max_words: int = 120,
-    min_words: int = 30
-) -> str:
-    """
-    Two-stage abstractive summarization:
-      1) Short extractive summary (MMR TF-IDF)
-      2) Abstractive polish of that short text (cached HF model)
-    This reduces hallucination and runtime.
-    """
-    if not text or not text.strip():
-        return ""
-
-    # 1) Short extractive (k tuned to target size)
-    k = max(3, int(max(1, max_words // 30)))  # rough sentences count
-    short = summarize_with_mmr(text, k=k)
-    if len(short.split()) < 10:
-        # fallback: take first k cleaned sentences
-        sents = split_sentences(text)
-        short = " ".join(sents[:k])
-
-    # 2) Load cached summarizer and polish
-    from transformers import pipeline
-    tok, mdl = _load_summarizer(model_name)
-    import torch
-    device = 0 if torch.cuda.is_available() else -1
-    summarizer = pipeline("summarization", model=mdl, tokenizer=tok, device=device)
-
-    max_len = max(60, min(400, int(max_words * 1.2)))
-    min_len = max(20, int(min_words * 0.6))
-    out = summarizer(short, max_length=max_len, min_length=min_len, do_sample=False, truncation=True)
-    return out[0]["summary_text"]
-
-# ---- Orchestrator ----
-def summarize(
-    text: str,
-    mode: str = "Extractive",
-    max_sentences: int = 5,
-    model_name: str = HF_ABS_DEFAULT,
-    max_words: int = 120,
-    min_words: int = 30,
-    use_embeddings: bool = False
-) -> str:
-    """
-    Top-level entry:
-      - mode: "Extractive" or "Abstractive"
-      - max_sentences: for extractive k
-      - use_embeddings: if True and sentence-transformers is installed, uses embedding MMR
-    """
-    mode = (mode or "Extractive").lower()
-    if mode.startswith("abs"):
-        return summarize_abstractive_polish(text, model_name=model_name, max_words=max_words, min_words=min_words)
-    if use_embeddings:
-        try:
-            return summarize_with_embeddings_mmr(text, k=max_sentences)
-        except Exception:
-            # fallback gracefully to TF-IDF MMR
-            return summarize_with_mmr(text, k=max_sentences)
-    return summarize_with_mmr(text, k=max_sentences)
-
-# ---- Convenience: summarize list of docs (per-topic) ----
-def summarize_docs_list(docs: List[str], mode: str = "Extractive", **kwargs) -> str:
-    """
-    Summarize a list of documents (e.g., docs for a topic) by joining them into a single text
-    and calling summarize(...).
-    """
-    combined = " ".join(docs)
-    # If combined is too short, just return extractive on combined
-    return summarize(combined, mode=mode, **kwargs)
-
-
-# ------------------------
-# Topic-level summarization helpers 
-# ------------------------
-from typing import Dict, List, Tuple
-import math
-
-def _top_docs_for_topic_argmax(docs: List[str], theta: np.ndarray, topic: int, top_k: int = 50) -> List[str]:
-    """Return docs whose argmax == topic, up to top_k (no particular sort)."""
-    dom = np.argmax(theta, axis=1)
-    idxs = np.where(dom == topic)[0].tolist()
-    # limit to top_k (keep original order)
-    idxs = idxs[:top_k]
-    return [docs[i] for i in idxs]
-
-def _top_docs_for_topic_weighted(docs: List[str], theta: np.ndarray, topic: int, top_k: int = 50) -> List[str]:
-    """
-    Return top_k docs for a topic by descending theta weight.
-    This gives the most representative docs for that topic.
-    """
-    weights = theta[:, int(topic)]
-    # get indices sorted by weight desc
-    idxs = np.argsort(weights)[::-1]
-    # filter out near-zero weights to avoid including unrelated docs
-    idxs = [int(i) for i in idxs if weights[int(i)] > 0][:top_k]
-    return [docs[i] for i in idxs]
-
-def summarize_topic_docs_list(docs: List[str], mode: str = "Extractive", max_sentences: int = 5,
-                              use_embeddings: bool = False, max_words: int = 120, min_words: int = 30) -> str:
-    """
-    Summarize a list of documents (docs: list[str]) into a single summary string.
-    mode: "Extractive" or "Abstractive"
-    """
-    combined = " ".join(docs)
-    if not combined.strip():
-        return ""
-    if (mode or "Extractive").lower().startswith("abs"):
-        # abstractive polish: first do short extractive then polish
-        return summarize_abstractive_polish(combined, max_words=max_words, min_words=min_words)
-    else:
-        return summarize(combined, mode="Extractive", max_sentences=max_sentences, use_embeddings=use_embeddings)
-
-def summarize_all_topics_argmax(
-    docs: List[str],
-    theta: np.ndarray,
-    n_topics: int,
-    mode: str = "Extractive",
-    top_k_docs_per_topic: int = 50,
-    max_sentences: int = 5,
-    use_embeddings: bool = False,
-    max_words: int = 120,
-    min_words: int = 30
-) -> Dict[int, Dict[str, object]]:
-    """
-    For each topic (0..n_topics-1) gather docs assigned by argmax and produce a summary.
-    Returns dict: {topic_idx: {"summary": str, "n_docs": int, "sample_docs": [..]}}
-    """
-    out = {}
-    for t in range(n_topics):
-        topic_docs = _top_docs_for_topic_argmax(docs, theta, t, top_k=top_k_docs_per_topic)
-        n_docs = len(topic_docs)
-        if n_docs == 0:
-            out[t] = {"summary": "", "n_docs": 0, "sample_docs": []}
-            continue
-        summ = summarize_topic_docs_list(topic_docs, mode=mode, max_sentences=max_sentences,
-                                         use_embeddings=use_embeddings, max_words=max_words, min_words=min_words)
-        out[t] = {"summary": summ, "n_docs": n_docs, "sample_docs": topic_docs[:3]}
-    return out
-
-def summarize_all_topics_weighted(
-    docs: List[str],
-    theta: np.ndarray,
-    n_topics: int,
-    mode: str = "Extractive",
-    top_k_docs_per_topic: int = 50,
-    max_sentences: int = 5,
-    use_embeddings: bool = False,
-    max_words: int = 120,
-    min_words: int = 30
-) -> Dict[int, Dict[str, object]]:
-    """
-    For each topic gather the top-K docs by theta weight and summarize them.
-    Returns dict: {topic_idx: {"summary": str, "n_docs_considered": int, "sample_docs": [..]}}
-    """
-    out = {}
-    for t in range(n_topics):
-        topic_docs = _top_docs_for_topic_weighted(docs, theta, t, top_k=top_k_docs_per_topic)
-        n_docs = len(topic_docs)
-        if n_docs == 0:
-            out[t] = {"summary": "", "n_docs_considered": 0, "sample_docs": []}
-            continue
-        summ = summarize_topic_docs_list(topic_docs, mode=mode, max_sentences=max_sentences,
-                                         use_embeddings=use_embeddings, max_words=max_words, min_words=min_words)
-        out[t] = {"summary": summ, "n_docs_considered": n_docs, "sample_docs": topic_docs[:3]}
-    return out
-
-
-# ---- CPU-friendly extractive + small-polish helpers ----
-
-# We keep these functions independent so they can be used from app.py
-
-def extractive_with_embedding_mmr(text: str, k: int = 4, emb_model=None, lambda_param: float = 0.7) -> str:
-    """
-    Embedding-based MMR extractive summarizer.
-    - text: source text
-    - k: number of sentences to select
-    - emb_model: sentence-transformers model (optional; pass None to let caller provide cached model)
-    """
-    # Lazy import to avoid heavy loads if unused
-    try:
-        from sentence_transformers import SentenceTransformer
-        from sklearn.metrics.pairwise import cosine_similarity
-    except Exception as e:
-        raise RuntimeError("sentence-transformers required. pip install sentence-transformers") from e
-
-    sents = split_sentences(text, min_words=6, fallback_chunk=60)
-    if not sents:
-        return ""
-
-    # allow caller to pass a model instance (recommended)
-    if emb_model is None:
-        emb_model = SentenceTransformer("all-mpnet-base-v2")
-
-    embeddings = emb_model.encode(sents, convert_to_numpy=True, show_progress_bar=False)
-    doc_emb = embeddings.mean(axis=0, keepdims=True)
-    relevance = cosine_similarity(embeddings, doc_emb).ravel()
-
-    # MMR selection (embedding similarity for diversity)
-    n = len(sents)
-    k_local = min(k, n)
-    sim = cosine_similarity(embeddings)
-    selected_idx = []
-    remaining = list(range(n))
-    first = int(np.argmax(relevance))
-    selected_idx.append(first)
-    remaining.remove(first)
-    while len(selected_idx) < k_local and remaining:
-        mmr_scores = []
-        for j in remaining:
-            diversity = max(sim[j][selected_idx]) if selected_idx else 0.0
-            mmr_score = lambda_param * relevance[j] - (1.0 - lambda_param) * diversity
-            mmr_scores.append((mmr_score, j))
-        mmr_scores.sort(reverse=True)
-        _, pick = mmr_scores[0]
-        selected_idx.append(pick)
-        remaining.remove(pick)
-    selected_idx_sorted = sorted(selected_idx)
-    chosen = [sents[i] for i in selected_idx_sorted]
-
-    # Small dedupe pass (TF-IDF) to avoid near-duplicate sentences
+def _safe_import_sklearn():
+    """Import scikit-learn components."""
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.metrics.pairwise import cosine_similarity as _cos
-        vec = TfidfVectorizer(stop_words='english', max_features=1000)
-        X = vec.fit_transform(chosen)
-        keep = []
-        for i in range(len(chosen)):
-            if not keep:
-                keep.append(i)
-                continue
-            sims = _cos(X[i], X[keep]).ravel()
-            if sims.max() < 0.78:
-                keep.append(i)
-        chosen = [chosen[i] for i in keep]
-    except Exception:
-        # if sklearn missing or fails, keep original chosen
-        pass
-
-    return " ".join(chosen)
+        from sklearn.metrics.pairwise import cosine_similarity
+        return TfidfVectorizer, cosine_similarity
+    except ImportError:
+        raise ImportError("Install scikit-learn: pip install scikit-learn")
 
 
-def pipeline_topic_summary_cpu(
-    docs: List[str],
-    theta: np.ndarray,
-    topic_idx: int,
-    top_k: int = 25,
-    emb_k: int = 4,
-    emb_model=None,
-    polish: bool = True,
-    polish_pipeline=None
-) -> dict:
-    """
-    For a given topic index:
-      - pick top_k docs by theta weight,
-      - generate an extractive summary (embeddings MMR),
-      - optionally polish with a small HF model (polish_pipeline).
-    Returns dict with keys: 'extractive', 'abstractive', 'sample_docs', 'n_docs_considered'
-    """
-    # defensive checks
-    if docs is None or theta is None:
-        return {"extractive": "", "abstractive": "", "sample_docs": [], "n_docs_considered": 0}
-
-    idxs = np.argsort(theta[:, topic_idx])[::-1][:top_k]
-    rep_docs = [docs[i] for i in idxs if isinstance(docs[i], str) and docs[i].strip()][:top_k]
-
-    combined = " ".join(rep_docs)
-    if not combined.strip():
-        return {"extractive": "", "abstractive": "", "sample_docs": [], "n_docs_considered": len(rep_docs)}
-
-    # extractive (embedding MMR) — prefer passed emb_model to avoid reloading
+@lru_cache(maxsize=1)
+def _get_sentence_model():
+    """Load sentence-transformers model (cached)."""
     try:
-        extractive = extractive_with_embedding_mmr(combined, k=emb_k, emb_model=emb_model)
+        from sentence_transformers import SentenceTransformer
+        # Use smallest model (90MB)
+        return SentenceTransformer('all-MiniLM-L6-v2')
+    except Exception:
+        return None
+
+
+def extractive_summary_tfidf(
+    sentences: List[str],
+    k: int = 8,
+    lambda_param: float = 0.7
+) -> List[str]:
+    """
+    MMR-based extractive summarization using TF-IDF.
+    Fast, no external models needed.
+    """
+    if not sentences or k <= 0:
+        return []
+    
+    TfidfVectorizer, cosine_similarity = _safe_import_sklearn()
+    
+    # Vectorize sentences
+    vectorizer = TfidfVectorizer(
+        stop_words='english',
+        ngram_range=(1, 2),
+        max_features=5000
+    )
+    
+    try:
+        tfidf_matrix = vectorizer.fit_transform(sentences)
+    except ValueError:  # Not enough sentences
+        return sentences[:k]
+    
+    # Convert to dense array
+    if hasattr(tfidf_matrix, 'toarray'):
+        tfidf_matrix = tfidf_matrix.toarray()
+    
+    # Document centroid
+    doc_vector = tfidf_matrix.mean(axis=0, keepdims=True)
+    
+    # Relevance scores
+    relevance = cosine_similarity(tfidf_matrix, doc_vector).flatten()
+    
+    # MMR selection
+    selected_indices = []
+    available = list(range(len(sentences)))
+    
+    for _ in range(min(k, len(sentences))):
+        if not available:
+            break
+        
+        if not selected_indices:
+            # First sentence: most relevant
+            idx = int(np.argmax(relevance))
+            selected_indices.append(idx)
+            available.remove(idx)
+        else:
+            # Balance relevance and diversity
+            selected_vectors = tfidf_matrix[selected_indices]
+            candidate_vectors = tfidf_matrix[available]
+            
+            # Similarity to already selected
+            similarity_to_selected = cosine_similarity(
+                candidate_vectors,
+                selected_vectors
+            ).max(axis=1)
+            
+            # MMR score
+            mmr_scores = (
+                lambda_param * relevance[available] -
+                (1 - lambda_param) * similarity_to_selected
+            )
+            
+            # Pick best
+            best_idx = int(np.argmax(mmr_scores))
+            selected_indices.append(available[best_idx])
+            available.remove(available[best_idx])
+    
+    # Return in original order
+    selected_indices.sort()
+    return [sentences[i] for i in selected_indices]
+
+
+def extractive_summary_embeddings(
+    sentences: List[str],
+    k: int = 8,
+    lambda_param: float = 0.7
+) -> List[str]:
+    """
+    MMR using sentence embeddings (better quality, slower).
+    Falls back to TF-IDF if model unavailable.
+    """
+    model = _get_sentence_model()
+    if model is None:
+        # Fallback to TF-IDF
+        return extractive_summary_tfidf(sentences, k, lambda_param)
+    
+    if not sentences or k <= 0:
+        return []
+    
+    _, cosine_similarity = _safe_import_sklearn()
+    
+    # Encode sentences
+    try:
+        embeddings = model.encode(sentences, show_progress_bar=False)
+    except Exception:
+        return extractive_summary_tfidf(sentences, k, lambda_param)
+    
+    # Document centroid
+    doc_vector = embeddings.mean(axis=0, keepdims=True)
+    
+    # Relevance scores
+    relevance = cosine_similarity(embeddings, doc_vector).flatten()
+    
+    # MMR selection (same as TF-IDF version)
+    selected_indices = []
+    available = list(range(len(sentences)))
+    
+    for _ in range(min(k, len(sentences))):
+        if not available:
+            break
+        
+        if not selected_indices:
+            idx = int(np.argmax(relevance))
+            selected_indices.append(idx)
+            available.remove(idx)
+        else:
+            selected_vectors = embeddings[selected_indices]
+            candidate_vectors = embeddings[available]
+            
+            similarity_to_selected = cosine_similarity(
+                candidate_vectors,
+                selected_vectors
+            ).max(axis=1)
+            
+            mmr_scores = (
+                lambda_param * relevance[available] -
+                (1 - lambda_param) * similarity_to_selected
+            )
+            
+            best_idx = int(np.argmax(mmr_scores))
+            selected_indices.append(available[best_idx])
+            available.remove(available[best_idx])
+    
+    selected_indices.sort()
+    return [sentences[i] for i in selected_indices]
+
+
+# ============ Abstractive Summarization ============
+
+@lru_cache(maxsize=2)
+def _get_abstractive_model(model_name: str = "distilbart"):
+    """Load abstractive model (cached, CPU-friendly)."""
+    try:
+        from transformers import pipeline
+        
+        model_map = {
+            "distilbart": "sshleifer/distilbart-cnn-12-6",  # 500MB, fastest
+            "bart": "facebook/bart-large-cnn",               # 1.6GB, better quality
+        }
+        
+        if model_name not in model_map:
+            model_name = "distilbart"
+        
+        # Force CPU
+        return pipeline(
+            "summarization",
+            model=model_map[model_name],
+            device=-1  # CPU
+        )
     except Exception as e:
-        # fallback to TF-IDF MMR in your module if embeddings fail
-        try:
-            extractive = summarize_with_mmr(combined, k=emb_k)
-        except Exception:
-            extractive = " ".join(split_sentences(combined)[:emb_k])
+        print(f"Could not load abstractive model: {e}")
+        return None
 
-    # polish if requested (polish_pipeline is an hf pipeline, cached by app.py)
-    abstractive = extractive
-    if polish and polish_pipeline is not None:
-        try:
-            out = polish_pipeline(extractive, max_length=180, min_length=40, truncation=True)
-            abstractive = out[0]["summary_text"]
-        except Exception:
-            abstractive = extractive
 
+def abstractive_summary(
+    text: str,
+    min_length: int = 100,
+    max_length: int = 250,
+    model_name: str = "distilbart"
+) -> Optional[str]:
+    """
+    Abstractive summarization using transformers.
+    Returns None if model unavailable (graceful degradation).
+    """
+    pipe = _get_abstractive_model(model_name)
+    if pipe is None:
+        return None
+    
+    if not text or len(text.split()) < 50:
+        return None
+    
+    try:
+        # Truncate if too long (model limit: ~1024 tokens)
+        words = text.split()
+        if len(words) > 800:
+            text = " ".join(words[:800])
+        
+        result = pipe(
+            text,
+            min_length=min_length,
+            max_length=max_length,
+            do_sample=False,
+            truncation=True
+        )
+        
+        if result and isinstance(result, list) and len(result) > 0:
+            summary = result[0].get('summary_text', '')
+            return summary.strip()
+    except Exception as e:
+        print(f"Abstractive summarization failed: {e}")
+    
+    return None
+
+
+# ============ Main Summarization Pipeline ============
+
+def summarize_document(
+    text: str,
+    *,
+    mode: str = "hybrid",  # "extractive", "abstractive", "hybrid"
+    num_sentences: int = 10,
+    min_words: int = 150,
+    max_words: int = 300,
+    use_embeddings: bool = True,
+    model_name: str = "distilbart"
+) -> Dict[str, any]:
+    """
+    Main summarization function.
+    
+    Args:
+        text: Cleaned text to summarize
+        mode: "extractive" (fast), "abstractive" (quality), "hybrid" (best)
+        num_sentences: Number of sentences for extractive stage
+        min_words: Minimum summary length (words)
+        max_words: Maximum summary length (words)
+        use_embeddings: Use sentence embeddings (better quality, slower)
+    
+    Returns:
+        {
+            "summary": final summary text,
+            "extractive_summary": extractive stage output,
+            "mode_used": actual mode used (may fallback),
+            "word_count": summary word count,
+        }
+    """
+    from .cleaners import split_sentences
+    
+    # Split into sentences
+    sentences = split_sentences(text)
+    
+    if not sentences:
+        return {
+            "summary": "",
+            "extractive_summary": "",
+            "mode_used": "none",
+            "word_count": 0,
+        }
+    
+    # If text is already short, return it
+    if len(sentences) <= num_sentences:
+        summary = " ".join(sentences)
+        return {
+            "summary": summary,
+            "extractive_summary": summary,
+            "mode_used": "passthrough",
+            "word_count": len(summary.split()),
+        }
+    
+    # Extractive stage
+    if use_embeddings:
+        extractive_sents = extractive_summary_embeddings(sentences, k=num_sentences)
+    else:
+        extractive_sents = extractive_summary_tfidf(sentences, k=num_sentences)
+    
+    extractive_text = " ".join(extractive_sents)
+    
+    # Early return for extractive-only mode
+    if mode == "extractive":
+        return {
+            "summary": extractive_text,
+            "extractive_summary": extractive_text,
+            "mode_used": "extractive",
+            "word_count": len(extractive_text.split()),
+        }
+    
+    # Abstractive stage (if requested)
+    if mode in ["abstractive", "hybrid"]:
+        abstractive_text = abstractive_summary(
+            extractive_text,
+            min_length=min_words,
+            max_length=max_words,
+            model_name=model_name
+        )
+        
+        if abstractive_text:
+            return {
+                "summary": abstractive_text,
+                "extractive_summary": extractive_text,
+                "mode_used": "hybrid" if mode == "hybrid" else "abstractive",
+                "word_count": len(abstractive_text.split()),
+            }
+    
+    # Fallback to extractive if abstractive failed
     return {
-        "extractive": extractive,
-        "abstractive": abstractive,
-        "sample_docs": rep_docs[:3],
-        "n_docs_considered": len(rep_docs)
+        "summary": extractive_text,
+        "extractive_summary": extractive_text,
+        "mode_used": "extractive_fallback",
+        "word_count": len(extractive_text.split()),
     }
+
+
+# ============ Topic-wise Summarization ============
+
+def summarize_by_topics(
+    documents: List[str],
+    topic_assignments: List[int],
+    num_topics: int,
+    sentences_per_topic: int = 5
+) -> Dict[int, str]:
+    """
+    Generate summaries for each topic.
+    
+    Args:
+        documents: List of document texts
+        topic_assignments: Topic ID for each document (from argmax)
+        num_topics: Total number of topics
+        sentences_per_topic: Sentences to extract per topic
+    
+    Returns:
+        Dictionary mapping topic_id -> summary
+    """
+    from .cleaners import split_sentences
+    
+    topic_summaries = {}
+    
+    for topic_id in range(num_topics):
+        # Get documents for this topic
+        topic_docs = [
+            documents[i] for i, t in enumerate(topic_assignments)
+            if t == topic_id
+        ]
+        
+        if not topic_docs:
+            topic_summaries[topic_id] = ""
+            continue
+        
+        # Combine and split into sentences
+        combined_text = " ".join(topic_docs)
+        sentences = split_sentences(combined_text)
+        
+        # Extract key sentences
+        if len(sentences) <= sentences_per_topic:
+            summary_sentences = sentences
+        else:
+            summary_sentences = extractive_summary_tfidf(
+                sentences,
+                k=sentences_per_topic,
+                lambda_param=0.7
+            )
+        
+        topic_summaries[topic_id] = " ".join(summary_sentences)
+    
+    return topic_summaries
