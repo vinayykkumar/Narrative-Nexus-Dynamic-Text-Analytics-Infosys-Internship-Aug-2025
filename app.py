@@ -254,8 +254,11 @@ st.markdown('<base target="_self">', unsafe_allow_html=True)
 # ---------------- PAGES ----------------
 PAGES = [
     "Home", "Data Input", "Preprocessing", "Topic Modeling",
-    "Sentiment", "Summarization", "Dashboard", "About"
+    "Sentiment", "Summarization", "Dashboard", "About", "Login"
 ]
+
+# pages shown in the top navbar (hide Login from the nav links)
+NAV_PAGES = [p for p in PAGES if p != "Login"]
 
 # ---------------- NAV HELPERS ----------------
 def _set_page(page_name: str, update_query=True):
@@ -311,8 +314,8 @@ def init_page():
             url_page = None
         st.session_state["page"] = url_page if (url_page in PAGES) else "Home"
 
-# ---------------- STYLES (Consolidated and Patched) ----------------
-# I've combined all your custom styles into this one block for easier management.
+# ---------------- STYLES  ----------------
+
 HOME_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
@@ -374,40 +377,116 @@ HOME_CSS = """
     .hero-center p { margin: 16px auto 0; max-width: 720px; color: var(--muted); font-size: 18px; line-height: 1.6; }
 
     /* PATCH: Correctly style and center the main hero button */
-    /* Target the container Streamlit generates for any button to center it */
+    /* -------- BUTTON STYLES -------- */
+    
+    /* CENTER ALL BUTTON CONTAINERS BY DEFAULT */
     div[data-testid="stButton"] {
-        display: flex;
-        justify-content: center;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
     }
     
-    /* We use a unique ID on an empty div as a "hook" to target ONLY the hero button */
-    /* This rule targets the button container that is the *next sibling* of our hook */
-    #hero-button-container + div[data-testid="stButton"] {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    margin: 30px 0 64px; /* Vertical spacing */
-}
-
-/* Use the hook to style the button element itself with gradients, fonts, etc. */
-#hero-button-container + div[data-testid="stButton"] > button {
-    background: linear-gradient(90deg, #50e3a4, #2fc48d) !important;
-    color: #0b1f18 !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 14px 32px !important;
-    font-weight: 800 !important;
-    font-size: 18px !important;
-    box-shadow: 0 8px 24px rgba(80,227,164,0.25) !important;
-    transition: transform .2s, box-shadow .2s !important;
-}
-
-/* Hover effect for the specific hero button */
-#hero-button-container + div[data-testid="stButton"] > button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(80,227,164,0.35);
-    filter: brightness(1.05);
-}
+    /* HERO BUTTON CONTAINER - Force absolute centering */
+    .hero-button-wrapper {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 30px auto 64px !important;
+        text-align: center !important;
+        
+    }
+    
+    .hero-button-wrapper div[data-testid="stButton"] {
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        
+    }
+    
+    .hero-button-wrapper div[data-testid="stButton"] > button {
+        background: linear-gradient(90deg, #50e3a4, #2fc48d) !important;
+        color: #0b1f18 !important;
+        border: none !important;
+        border-radius: 16px !important;
+        padding: 14px 36px !important;
+        font-weight: 800 !important;
+        font-size: 18px !important;
+        box-shadow: 0 8px 24px rgba(80,227,164,0.25) !important;
+        transition: transform .2s, box-shadow .2s !important;
+        width: auto !important;
+        min-width: 220px !important;
+        margin: 0 auto !important;
+       
+    }
+    
+    .hero-button-wrapper div[data-testid="stButton"] > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 30px rgba(80,227,164,0.35) !important;
+        filter: brightness(1.08) !important;
+       
+    }
+    
+    /* Target hero button directly by nearby hook */
+    #hero-button-container ~ div[data-testid="stButton"]:first-of-type {
+        display: flex !important;
+        justify-content: center !important;
+        margin: 30px auto 64px !important;
+    }
+    
+    #hero-button-container ~ div[data-testid="stButton"]:first-of-type > button {
+        background: linear-gradient(90deg, #50e3a4, #2fc48d) !important;
+        color: #0b1f18 !important;
+        border: none !important;
+        border-radius: 16px !important;
+        padding: 14px 36px !important;
+        font-weight: 800 !important;
+        font-size: 18px !important;
+        box-shadow: 0 8px 24px rgba(80,227,164,0.25) !important;
+        transition: transform .2s, box-shadow .2s !important;
+        width: auto !important;
+        min-width: 220px !important;
+    }
+    
+    #hero-button-container ~ div[data-testid="stButton"]:first-of-type > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 30px rgba(80,227,164,0.35) !important;
+        filter: brightness(1.08) !important;
+        
+    }
+    
+    /* ALL OTHER BUTTONS - Compact with solid color */
+    div[data-testid="stButton"] > button {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 10px 24px !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+        transition: all .2s ease !important;
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 280px !important;
+    }
+    
+    div[data-testid="stButton"] > button:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    /* Primary action buttons (use type="primary" in Streamlit) */
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, #50e3a4, #2fc48d) !important;
+        color: #0b1f18 !important;
+    }
+    
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #2fc48d, #20a974) !important;
+    }
+    
     /* END PATCH */
 
     /* -------- MEDIA -------- */
@@ -416,10 +495,19 @@ HOME_CSS = """
         width: 100%; max-width: 900px; margin: 0 auto; aspect-ratio: 16/9; border-radius: 20px; overflow: hidden;
         border: 1px solid var(--border); box-shadow: 0 16px 40px rgba(0,0,0,.35);
     }
+    
+    /* -------- TEXT ELEMENTS Paragraphs -------- */
+    .hero-center p,
+    .section p {
+        text-align: center;
+        margin: 16px auto;
+        max-width: 720px;   /* keeps paragraphs nicely readable */
+        line-height: 1.6;
+    }
 
     /* -------- SECTIONS -------- */
     .section { padding: 96px 0; }
-    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-header { text-align: center; margin-bottom: 48px;  }
     .section-kicker { color: var(--brand); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; }
     .section-title { font-size: 36px; font-weight: 700; margin: 8px 0 0; line-height: 1.2; }
     .section-subtitle { color: var(--muted); max-width: 700px; margin: 16px auto 0; text-align: center; }
@@ -428,15 +516,78 @@ HOME_CSS = """
     .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
     .why-card { background: var(--glass); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: background .2s, transform .2s; height: 100%; }
     .why-card:hover { background: rgba(255,255,255,.08); transform: translateY(-4px); }
-    .why-card .icon { font-size: 32px; margin-bottom: 16px; color: var(--brand); }
-    .why-card h4 { margin: 0 0 8px; color: #dffcea; font-size: 20px; font-weight: 600; }
-    .why-card p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+    .why-card .icon { font-size: 32px; margin-bottom: 16px; color: var(--brand); align-items: center; display: flex; justify-content: center; }
+    .why-card h4 { margin: 0 0 8px; color: #dffcea; font-size: 26px; font-weight: 600; align-items: center; display: flex; justify-content: center; }
+    .why-card p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; align-items: center; display: flex; justify-content: center; }
 
     /* -------- CORE FUNCTIONS -------- */
-    .core-fn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-    .core-fn-card { background: #12161E; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    .core-fn-card h4 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-    .core-fn-card p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+    .core-fn-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    /* Bigger Toolkit cards for better balance */
+    .core-fn-card {
+        background: #12161E !important;        /* restore dark background */
+        border: 1px solid var(--border) !important; /* restore border */
+        padding: 28px !important;              /* more breathing room */
+        border-radius: 16px !important;        /* match why-card/pricing */
+        min-height: 200px !important;          /* consistent height */
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25); /* subtle depth */
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    .core-fn-card:hover {
+        background: rgba(255,255,255,0.05) !important; /* subtle hover */
+        transform: translateY(-4px);
+    }
+
+    .core-fn-card h4 {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        text-align: center;
+        margin-bottom: 12px !important;
+        color: #dffcea !important;
+    }
+
+    .core-fn-card p {
+        font-size: 15px !important;
+        line-height: 1.55 !important;
+        text-align: center;
+        color: var(--muted) !important;
+    }
+    
+    /* Deep-dive accordions: compact, readable, left-aligned */
+    .deep-dive-card {
+      background: #12161E;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin: 10px auto;
+      max-width: 900px;
+    }
+    .deep-dive-card[open] { background: rgba(255,255,255,0.06); }
+
+    .deep-dive-card summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left;
+    }
+    .deep-dive-card summary::-webkit-details-marker { display: none; }
+
+    .deep-dive-card p {
+      margin: 10px 0 0 0;
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--muted);
+      text-align: left;       /* override global centered paragraphs */
+    }
 
     /* -------- PRICING -------- */
     .pricing-card {
@@ -458,7 +609,47 @@ HOME_CSS = """
     .pricing-btn:hover { background: var(--glass); transform: translateY(-1px); border-color: rgba(255,255,255,.35); }
 
     /* -------- FOOTER -------- */
-    .footer { border-top: 1px solid var(--border); padding: 32px 0; margin-top: 64px; text-align: center; color: var(--muted); font-size: 14px; }
+    
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 36px 0;
+      margin-top: 72px;
+      color: var(--muted);
+      line-height: 2.2;
+    }
+    .footer .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 22px;
+      align-items: start;
+    }
+    .footer h4 {
+      margin: 0 0 10px;
+      color: var(--fg);
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .footer a {
+      color: var(--fg) !important;
+      text-decoration: none !important;
+      opacity: .9;
+    }
+    .footer a:hover { opacity: 1; }
+    .footer .logo {
+      font-weight: 800; font-size: 18px; color: #eaf7f0 !important;
+    }
+    .footer .kicker { color: var(--brand); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+    .footer .tiny { font-size: 14px; opacity: .8; margin-top: 8px; }
+    .footer .social { display:flex; gap:10px; margin-top: 8px; }
+    .footer .social a { border:1px solid var(--border); padding:6px 10px; border-radius: 999px; }
+    .footer .bottom {
+      display:flex; justify-content:space-between; align-items:center;
+      gap:12px; flex-wrap: wrap; margin-top: 12px; opacity:.9;
+    }
+
 
     /* Avoid blue default links anywhere inside main wrappers */
     .main-content-wrapper a { color: var(--fg) !important; text-decoration: none !important; }
@@ -470,13 +661,15 @@ def render_navbar():
     st.markdown(HOME_CSS, unsafe_allow_html=True)
     current_page = st.session_state.get("page", "Home")
 
-    # Build anchor links with explicit target="_self"
+    # Build anchor links from NAV_PAGES only
     links_html = []
-    for p in PAGES:
+    for p in NAV_PAGES:
         active = "active" if p == current_page else ""
         href = f"?page={p.replace(' ', '_')}"
         links_html.append(f'<a class="nn-link {active}" href="{href}" target="_self">{p}</a>')
     links = "\n".join(links_html)
+
+    login_label = "Account" if st.session_state.get("user") else "Login / Sign up"
 
     nav_html = f"""
     <div class="nn-nav">
@@ -484,12 +677,13 @@ def render_navbar():
         <a class="nn-logo" href="?page=Home" target="_self">NarrativeNexus <small>AI</small></a>
         <div class="nn-links">{links}</div>
         <div class="nn-cta">
-          <a class="nn-login" href="?page=Data_Input" target="_self">Login</a>
+          <a class="nn-login" href="?page=Login" target="_self">{login_label}</a>
         </div>
       </div>
     </div>
     """
     st.markdown(nav_html, unsafe_allow_html=True)
+
 
 # ---------------- HOME PAGE (Patched Button) ----------------
 def page_home():
@@ -504,12 +698,15 @@ def page_home():
     """, unsafe_allow_html=True)
 
     # --- CENTERED CALL-TO-ACTION BUTTON (PATCH) ---
-    # We use an empty div with a unique ID as a "hook" for our CSS selector.
-    # The CSS targets the Streamlit button container that *immediately follows* this hook,
-    # ensuring only this specific button is styled and centered.
-    st.markdown('<div id="hero-button-container"></div>', unsafe_allow_html=True)
-    st.button("🚀 Get Started Now", key="hero_get_started",
-              on_click=lambda: nav_to("Data Input", in_callback=True))
+    c1, c2, c3 = st.columns([1, 2, 1], vertical_alignment="center")
+    with c2:
+        st.button(
+            "🚀 Get Started Now",
+            key="hero_get_started",
+            type="primary",             # picks your green gradient from CSS
+            use_container_width=True,   # fills the center column → visually centered
+            on_click=lambda: nav_to("Data Input", in_callback=True),
+        )
 
     # --- VIDEO ---
     st.markdown("""
@@ -564,6 +761,7 @@ def page_home():
                 <div class="section-header">
                     <div class="section-kicker">Our Toolkit</div>
                     <h2 class="section-title">All Your Text Analysis Tools in One Place</h2>
+                    <p class="section-subtitle">A fast, opinionated pipeline that keeps you focused on outcomes.</p>
                 </div>
                 <div class="core-fn-grid">
                     <div class="core-fn-card"><h4>📄 Data Input</h4><p>Upload TXT, DOCX, CSV, or paste text. Smart preview and validation.</p></div>
@@ -578,6 +776,235 @@ def page_home():
             </section>
         </div>
     """, unsafe_allow_html=True)
+
+       
+    
+
+    #  Use cases by role
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="use-cases">
+        <div class="section-header">
+          <div class="section-kicker">Use cases</div>
+          <h2 class="section-title">Built for teams that live in text</h2>
+          <p class="section-subtitle">Clear outcomes for Product, Research, Support, and Ops.</p>
+        </div>
+        <div class="why-grid">
+          <div class="why-card"><div class="icon">🧭</div><h4>Product</h4><p>Turn feedback into priority themes & action lists.</p></div>
+          <div class="why-card"><div class="icon">🔬</div><h4>Research</h4><p>Surface dominant narratives and evidence quickly.</p></div>
+          <div class="why-card"><div class="icon">🎧</div><h4>Support</h4><p>Spot top pain points and sentiment shifts by topic.</p></div>
+          <div class="why-card"><div class="icon">⚙️</div><h4>Operations</h4><p>Monitor risks, compliance notes, and recurring issues.</p></div>
+          <div class="why-card"><div class="icon">🔬</div><h4>Research</h4><p>Surface dominant narratives and evidence quickly.</p></div>
+          <div class="why-card"><div class="icon">🎧</div><h4>Support</h4><p>Spot top pain points and sentiment shifts by topic.</p></div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    #  Security & privacy
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="security">
+        <div class="section-header">
+          <div class="section-kicker">Security & privacy</div>
+          <h2 class="section-title">Your data, your control</h2>
+          <p class="section-subtitle">Process in-session, export on demand, go on-prem if you must.</p>
+        </div>
+        <div class="core-fn-grid">
+          <div class="core-fn-card"><h4>🔒 In-session processing</h4><p>Workloads run in your session; clear state to remove artifacts.</p></div>
+          <div class="core-fn-card"><h4>📁 Explicit export</h4><p>No auto uploads; you choose when/what to export.</p></div>
+          <div class="core-fn-card"><h4>🏢 On-prem option</h4><p>Swap vectorizers/models; deploy inside your network perimeter.</p></div>
+          <div class="core-fn-card"><h4>🧪 Reproducible</h4><p>Deterministic settings and cached diagnostics for audits.</p></div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    #  Sample executive report preview (+ download)
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="sample-report">
+        <div class="section-header">
+          <div class="section-kicker">Preview</div>
+          <h2 class="section-title">Executive report — sample</h2>
+          <p class="section-subtitle">A single page with KPIs, topics × sentiment, and highlights.</p>
+        </div>
+        <div class="why-grid">
+          <div class="why-card">
+            <h4>📄 What’s inside</h4>
+            <p>Title, summary, key highlights, topic matrix, word cloud slots, and next actions.</p>
+          </div>
+          <div class="why-card">
+            <h4>🧰 Adaptable</h4>
+            <p>Swap logos, change sections, and drop in charts as needed.</p>
+          </div>
+          <div class="why-card">
+            <h4>⚡ One-click export</h4>
+            <p>Generate HTML instantly from your current session state.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # sample download button (simple static HTML preview)
+    sample_report_html = """<!doctype html><html><head><meta charset='utf-8'><title>NarrativeNexus — Sample Report</title>
+    <style>body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#0e1117;color:#eaf2f6;margin:40px}
+    .card{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:20px;margin-bottom:16px;background:#10141B}</style></head>
+    <body><h1>Executive Summary</h1><div class='card'><p>This is a sample executive report shell.</p></div>
+    <div class='card'><h3>Key Highlights</h3><ul><li>Highlight A</li><li>Highlight B</li></ul></div>
+    <div class='card'><h3>Topics × Sentiment</h3><p>Matrix placeholder.</p></div></body></html>"""
+        # sample download button (centered)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.download_button(
+            "📥 Download sample HTML",
+            data=sample_report_html,
+            file_name="narrativenexus_sample_report.html",
+            mime="text/html",
+            use_container_width=True
+        )
+
+
+
+    #  Feature deep-dive (expandable)
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="deep-dive">
+        <div class="section-header">
+          <div class="section-kicker">Deep dive</div>
+          <h2 class="section-title">Under the microscope</h2>
+          <p class="section-subtitle">Peek into how each module earns its keep.</p>
+        </div>
+        <div style="max-width:900px;margin:0 auto;">
+          <details class="deep-dive-card"><summary><strong>📊 Topic Modeling</strong></summary><p>TF-IDF/Count vectorizers, NMF/LDA, and diagnostics (c_v coherence, diversity, silhouette).</p></details>
+          <details class="deep-dive-card"><summary><strong>💬 Sentiment</strong></summary><p>Doc-level and topic-aware aggregation (argmax / weighted). VADER or RoBERTa.</p></details>
+          <details class="deep-dive-card"><summary><strong>🧾 Hybrid Summarization</strong></summary><p>MMR extractive seeds polished with DistilBART/BART for fluency and compression.</p></details>
+          <details class="deep-dive-card"><summary><strong>📈 Dashboard & Exports</strong></summary><p>KPIs, matrices, word clouds, and executive HTML export.</p></details>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+    #  Customer quotes / social proof
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="quotes">
+        <div class="section-header">
+          <div class="section-kicker">What users say</div>
+          <h2 class="section-title">Signal over noise — in practice</h2>
+        </div>
+        <div class="why-grid">
+          <div class="why-card"><p style="font-style:italic;">“We cut a week of feedback analysis to an afternoon.”</p><p>— Product Lead</p></div>
+          <div class="why-card"><p style="font-style:italic;">“Topic × sentiment made exec readouts painless.”</p><p>— Research Manager</p></div>
+          <div class="why-card"><p style="font-style:italic;">“Actionable summaries without babysitting the models.”</p><p>— Operations</p></div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    #  Compare vs manual workflow
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <section class="section" id="compare">
+        <div class="section-header">
+          <div class="section-kicker">Why this</div>
+          <h2 class="section-title">Manual scripts vs NarrativeNexus</h2>
+          <p class="section-subtitle">Spend time on judgment, not glue code.</p>
+        </div>
+        <div class="why-grid">
+          <div class="why-card">
+            <h4>🧰 Spreadsheets + Scripts</h4>
+            <ul style="margin:0 0 0 16px;">
+              <li>Glue work across tools</li>
+              <li>Fragile notebooks</li>
+              <li>Slow iterations</li>
+              <li>Hard to reproduce</li>
+            </ul>
+          </div>
+          <div class="why-card">
+            <h4>✨ NarrativeNexus</h4>
+            <ul style="margin:0 0 0 16px;">
+              <li>Opinionated end-to-end flow</li>
+              <li>Diagnostics built-in</li>
+              <li>Exportable, repeatable outputs</li>
+              <li>Faster to insight</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    #  CTA strip — split layout (image left, text right)
+    cta_img = "https://images.unsplash.com/photo-1529336953121-ebdc4e9a2b63?q=80&w=1200&auto=format&fit=crop"  # <- swap to your image
+
+    st.markdown(f"""
+    <style>
+      /* Split CTA layout */
+      .cta-split {{
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 28px;
+        align-items: center;
+      }}
+      .cta-split .left {{
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(0,0,0,.35);
+        background: #0b0f16;
+      }}
+      .cta-split .left img {{
+        display: block; width: 100%; height: 100%; object-fit: cover;
+      }}
+      .cta-split .right h2 {{
+        font-size: 36px; line-height: 1.2; margin: 0 0 10px; font-weight: 800;
+      }}
+      .cta-split .right p {{
+        color: var(--muted); font-size: 16px; line-height: 1.6; margin: 0 0 18px;
+      }}
+      .cta-split .right .cta-btn {{
+        display: inline-block;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: var(--brand);
+        color: var(--brand-ink) !important;
+        border: 1px solid var(--brand);
+        font-weight: 800;
+        text-decoration: none !important;
+        box-shadow: 0 8px 22px rgba(80,227,164,.28);
+        transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+      }}
+      .cta-split .right .cta-btn:hover {{
+        transform: translateY(-2px);
+        filter: brightness(1.05);
+        box-shadow: 0 12px 28px rgba(80,227,164,.36);
+      }}
+
+      /* Responsive: stack on small screens */
+      @media (max-width: 900px) {{
+        .cta-split {{ grid-template-columns: 1fr; }}
+      }}
+    </style>
+
+    <div class="main-content-wrapper">
+      <section class="section" id="cta-strip" style="padding:64px 0;">
+        <div class="cta-split">
+          <div class="left">
+            <img src="{cta_img}" alt="NarrativeNexus preview">
+          </div>
+          <div class="right">
+            <h2>Ready to turn text into decisions?</h2>
+            <p>Start with a sample or jump straight to your own data. Upload, model, summarize, and export — end to end.</p>
+            <a href="?page=Data_Input" target="_self" class="cta-btn">Get started</a>
+          </div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)    
+
 
     # --- PRICING ---
     st.markdown("""
@@ -637,7 +1064,7 @@ def page_home():
 
 # --- Data Input ---
 def page_data_input():
-    st.title("📄 Step 1: Data Input")
+    st.title("📄 Data Input")
     st.caption("Upload a file or paste text. We’ll validate and show an instant preview before preprocessing.")
 
     col_main, col_side = st.columns([1.8, 1])
@@ -734,7 +1161,7 @@ def page_data_input():
 
 # --- Preprocessing ---
 def page_preprocessing():
-    st.title("🧹 Step 2: Preprocessing")
+    st.title("🧹 Preprocessing")
     
     raw_text = st.session_state.get("raw_text", "")
     if not raw_text:
@@ -885,6 +1312,32 @@ def page_topics():
             st.session_state["tm_feature_names"] = V.feature_names
             st.session_state["tm_docs"] = docs
             st.session_state["tm_X"] = X_nd
+            
+            # <<< PATCH: extract keywords and label topics
+            try:
+                from src.topic_modeling import top_terms_per_topic
+                _kws = top_terms_per_topic(model, st.session_state["tm_feature_names"], topn=8) or []
+            except Exception:
+                _kws = []
+
+            # Try to label via labeling.py; fallback to top-3 keywords (title-cased)
+            try:
+                from src.labeling import keyword_labeler   # expects a list of terms
+                _labels = []
+                for terms in _kws:
+                    _labels.append(keyword_labeler(terms if isinstance(terms, (list, tuple)) else []))
+            except Exception:
+                def _fallback_label(terms):
+                    if not isinstance(terms, (list, tuple)) or not terms:
+                        return "Untitled"
+                    return ", ".join([t for t in terms[:3]]).title()
+                _labels = [_fallback_label(terms) for terms in _kws]
+
+            # Store both list and dict forms (your dashboard.py reads a dict)
+            st.session_state["topic_keywords"] = _kws                     # list[list[str]]
+            st.session_state["topic_labels"] = _labels                    # list[str]
+            st.session_state["topic_labels_map"] = {i: lbl for i, lbl in enumerate(_labels)}  # dict[int,str]
+            # <<< END PATCH
 
         st.success(f"Trained {algo_name} with {n_topics} topics ✔")
 
@@ -984,8 +1437,9 @@ def page_topics():
     with c2:
         if st.button("➡️ Next: Sentiment Analysis", key="btn_next_sentiment", use_container_width=True):
             nav_to("Sentiment")
+            
 
-# --- Sentiments (RESTORED: topic-wise bars) ---
+# --- Sentiments  ---
 def page_sentiment():
     import numpy as np
     import pandas as pd
@@ -1539,61 +1993,131 @@ def page_summarization():
                 st.exception(e)
     
     # ============ Topic-Level Summaries ============
+
     st.markdown("---")
     st.subheader("🧩 Topic-Level Summaries")
-    
+
     has_topics = all(k in st.session_state for k in ["tm_model", "tm_X", "tm_docs"])
-    
+    topic_labels = st.session_state.get("topic_labels", [])
+    topic_keywords = st.session_state.get("topic_keywords", [])
+
     if not has_topics:
         st.info("Run **Topic Modeling** first to enable topic-level summaries.")
         if st.button("➡️ Go to Topic Modeling"):
             nav_to("Topic Modeling")
     else:
-        sentences_per_topic = st.slider("Sentences per topic", 3, 10, 5, 1)
-        
+        colA, colB = st.columns([1,1])
+        with colA:
+            sentences_per_topic = st.slider("Sentences per topic", 3, 10, 5, 1)
+        with colB:
+            assign_method = st.selectbox(
+                "Assignment method",
+                ["Dominant topic (argmax)", "Weighted by topic prob (top-2 ≥ 0.35)"],
+                index=0,
+                help="Weighted: document can contribute to up to 2 topics if its probability ≥ 0.35"
+            )
+
         if st.button("📑 Generate Topic Summaries", use_container_width=True):
             with st.spinner("Generating topic summaries..."):
                 try:
                     from src.topic_modeling import doc_topic_distribution, top_terms_per_topic
                     from src.summarization import summarize_by_topics
-                    
+                    import numpy as np
+                    import pandas as pd
+
                     theta = doc_topic_distribution(st.session_state["tm_model"], st.session_state["tm_X"])
-                    topic_assignments = np.argmax(theta, axis=1).tolist()
                     docs = st.session_state["tm_docs"]
                     n_topics = theta.shape[1]
-                    
-                    topic_summaries = summarize_by_topics(docs, topic_assignments, n_topics, sentences_per_topic)
-                    keywords = top_terms_per_topic(
-                        st.session_state["tm_model"],
-                        st.session_state.get("tm_feature_names", []),
-                        topn=8
-                    )
-                    
+
+                    # Build assignments
+                    if assign_method.startswith("Dominant"):
+                        topic_assignments = np.argmax(theta, axis=1).tolist()
+                        # Summarize using single assignment per doc
+                        topic_summaries = summarize_by_topics(docs, topic_assignments, n_topics, sentences_per_topic)
+                    else:
+                        # Weighted: allow each doc to contribute to up to 2 topics if prob ≥ 0.35
+                        top2 = np.argsort(theta, axis=1)[:, -2:][:, ::-1]
+                        topic_summaries = {t: "" for t in range(n_topics)}
+                        # Build per-topic corpora with duplication for the second strong topic
+                        per_topic_docs = {t: [] for t in range(n_topics)}
+                        for i, probs in enumerate(theta):
+                            primary = top2[i,0]
+                            per_topic_docs[primary].append(docs[i])
+                            # second if strong enough
+                            second = top2[i,1]
+                            if probs[second] >= 0.2:
+                                per_topic_docs[second].append(docs[i])
+                        # Summarize each topic independently
+                        for t in range(n_topics):
+                            if per_topic_docs[t]:
+                                topic_summaries[t] = summarize_by_topics(
+                                    per_topic_docs[t],
+                                    [t]*len(per_topic_docs[t]),
+                                    1,
+                                    sentences_per_topic
+                                ).get(0, "")
+                    # Keywords (ensure we have them)
+                    try:
+                        keywords = topic_keywords or top_terms_per_topic(
+                            st.session_state["tm_model"],
+                            st.session_state.get("tm_feature_names", []),
+                            topn=8
+                        )
+                    except Exception:
+                        keywords = topic_keywords or [[] for _ in range(n_topics)]
+
+                    # Labels
+                    labels = topic_labels or [
+                        (", ".join(kws[:3]).title() if isinstance(kws, (list,tuple)) else str(kws))
+                        for kws in keywords
+                    ]
+
+                    # Build rows/state/CSV
                     rows = []
                     for t in range(n_topics):
-                        n_docs = topic_assignments.count(t)
-                        summary = topic_summaries.get(t, "")
-                        kws = ", ".join(keywords[t] if t < len(keywords) else [])
-                        
+                        kws = ", ".join(keywords[t]) if t < len(keywords) and isinstance(keywords[t], (list,tuple)) else ""
+                        lbl = (
+                            (st.session_state.get("topic_labels_map") or {}).get(t)
+                            or (labels[t] if t < len(labels) else None)
+                            or (kws.split(",")[0].title() if kws else f"Topic {t+1}")
+                        )
+                        summary = (topic_summaries.get(t, "") or "").strip()
+                        if not summary:
+                            summary = "_No summary available — this topic had too few docs to summarize._"
                         rows.append({
                             "Topic": t + 1,
+                            "Label": lbl,
                             "Keywords": kws,
-                            "Documents": n_docs,
                             "Summary": summary[:200] + "..." if len(summary) > 200 else summary
                         })
-                    
+
                     df = pd.DataFrame(rows)
-                    st.success(f"✅ Generated {n_topics} topic summaries")
-                    st.dataframe(df, use_container_width=True, height=400)
-                    
+                    st.success(f"✅ Generated {len(rows)} topic summaries")
+
+                    # Pretty per-topic blocks
+                    st.markdown("### Topic Summaries")
+                    for t in range(len(rows)):
+                        row = rows[t]
+                        st.markdown(f"#### Topic {row['Topic']} — **[{row['Label']}]**")
+                        if row["Keywords"]:
+                            st.markdown(f"**Keywords:** {row['Keywords']}")
+                        st.markdown(f"**Summary**\n\n{topic_summaries.get(t,'') or '_No summary available_'}")
+                        st.markdown("---")
+
+                    # Expander with table + CSV
+                    with st.expander("🔎 View as table / download CSV", expanded=False):
+                        st.dataframe(df, use_container_width=True, height=400)
+                        csv = df.to_csv(index=False)
+                        st.download_button("📥 Download CSV", csv, "topic_summaries.csv", "text/csv")
+
+                    # store for dashboard
                     st.session_state["topic_summaries"] = rows
                     st.session_state["topic_summaries_table"] = df
-                    
-                    csv = df.to_csv(index=False)
-                    st.download_button("📥 Download CSV", csv, "topic_summaries.csv", "text/csv")
-                    
+
                 except Exception as e:
                     st.error(f"❌ Failed: {e}")
+
+
     
     # ============ Navigation ============
     st.markdown("---")
@@ -1614,26 +2138,207 @@ def page_summarization():
 
 # --- Dashboard ---
 def page_dashboard_local_fallback():
-    if "tm_model" not in st.session_state:
-        st.info("⚠️ No topic model available. Showing direct summary instead.")
-        text = st.session_state.get("raw_text", "")
-        if text.strip():
-            from src.summarization import summarize_abstractive_polish
-            summary = summarize_abstractive_polish(text)
-            st.subheader("Direct Summary")
-            st.write(summary)
-        else:
-            st.warning("No text found to summarize.")
-        st.stop()
+    import numpy as np
+    import pandas as pd
+    import io, base64
 
-    st.title("📊 Dashboard (local fallback)")
-    st.write("This is the local dashboard fallback. Use Summarization -> Open Dashboard to produce topic summaries first.")
-    topic_summaries = st.session_state.get("topic_summaries")
-    if topic_summaries:
-        if isinstance(topic_summaries, list):
-            for r in topic_summaries:
-                st.markdown(f"**{r.get('topic_display','Topic')}**")
-                st.write((r.get("summary") or "")[:400] + ("..." if r.get("summary") and len(r.get("summary"))>400 else ""))
+    st.title("📊 Dashboard & Insights")
+
+    raw_text = st.session_state.get("raw_text", "")
+    if not raw_text:
+        st.warning("No data loaded. Go to **Data Input**.")
+        return
+
+    # --- State we might use across panels ---
+    has_tm   = all(k in st.session_state for k in ["tm_model", "tm_X"])
+    has_sent = isinstance(st.session_state.get("sentiment_results"), list) and len(st.session_state["sentiment_results"]) > 0
+
+    topic_labels_list = st.session_state.get("topic_labels", [])                 # list[str]
+    topic_labels_map  = st.session_state.get("topic_labels_map", {})             # dict[int,str]
+    topic_keywords    = st.session_state.get("topic_keywords", [])               # list[list[str]]
+    topic_summ_rows   = st.session_state.get("topic_summaries", [])              # list of rows from Summarization page
+    topic_summ_df     = st.session_state.get("topic_summaries_table")            # pd.DataFrame or None
+
+    # ---------- Overall Sentiment ----------
+    st.subheader("💬 Overall Sentiment")
+    if has_sent:
+        labels = [r.get("label") for r in st.session_state["sentiment_results"] if isinstance(r, dict)]
+        from collections import Counter
+        cnt = Counter(labels)
+        df_overall = pd.DataFrame(
+            {"label": ["POSITIVE", "NEUTRAL", "NEGATIVE"],
+             "count": [cnt.get("POSITIVE",0), cnt.get("NEUTRAL",0), cnt.get("NEGATIVE",0)]}
+        )
+        col1, col2 = st.columns([1,1])
+        with col1:
+            st.dataframe(df_overall, use_container_width=True)
+        with col2:
+            try:
+                import plotly.express as px
+                fig = px.pie(df_overall, names="label", values="count", title="Overall sentiment", hole=0.35)
+                st.plotly_chart(fig, use_column_width=True)
+            except Exception:
+                pass
+    else:
+        st.info("Run **Sentiment** to populate overall sentiment.")
+
+    st.markdown("---")
+
+    # ---------- Topic Summaries (with labels) ----------
+    st.subheader("🧩 Topic Summaries")
+    if topic_summ_rows:
+        for r in topic_summ_rows:
+            # your summarization page stored rows like: {"Topic": 1, "Label": "...", "Keywords":"...", "Summary":"..."}
+            tnum = int(r.get("Topic", 0))
+            lbl  = r.get("Label") or topic_labels_map.get(tnum-1) or (
+                topic_labels_list[tnum-1] if 0 <= (tnum-1) < len(topic_labels_list) else f"Topic {tnum}"
+            )
+            st.markdown(f"**Topic {tnum} — [{lbl}]**")
+            if r.get("Keywords"):
+                st.caption(f"Keywords: {r['Keywords']}")
+            st.write(r.get("Summary") or "_No summary available_")
+            st.markdown("")
+        with st.expander("View as table / download CSV", expanded=False):
+            if isinstance(topic_summ_df, pd.DataFrame):
+                st.dataframe(topic_summ_df, use_container_width=True, height=360)
+                st.download_button("📥 Download CSV", topic_summ_df.to_csv(index=False), "topic_summaries.csv", "text/csv")
+    else:
+        st.info("Generate topic summaries on the **Summarization** page to see them here.")
+
+    st.markdown("---")
+
+    
+    # ---------- Insights ----------
+    st.subheader("🔎 Insights & Recommendations")
+    insights = []
+    if has_tm and has_sent:
+        try:
+            from src.topic_modeling import doc_topic_distribution
+            theta = doc_topic_distribution(st.session_state["tm_model"], st.session_state["tm_X"])
+            dom = np.argmax(theta, axis=1)
+            labels = [r.get("label") for r in st.session_state["sentiment_results"] if isinstance(r, dict)]
+            n = min(len(dom), len(labels))
+            by_topic = {t: [] for t in range(theta.shape[1])}
+            for i in range(n):
+                by_topic[dom[i]].append(labels[i])
+            for t, labs in by_topic.items():
+                if not labs: 
+                    continue
+                neg_share = labs.count("NEGATIVE") / len(labs)
+                if neg_share >= 0.40:
+                    name = topic_labels_map.get(t) or (topic_labels_list[t] if t < len(topic_labels_list) else f"Topic {t+1}")
+                    insights.append(f"⚠️ **{name}** shows **{neg_share*100:.1f}% negative** sentiment — prioritize investigation.")
+        except Exception:
+            pass
+    if topic_summ_rows:
+        insights.append("🧭 Use topic summaries to pre-fill your executive brief; move top risks/opportunities into your report.")
+    if insights:
+        for line in insights:
+            st.markdown(f"- {line}")
+    else:
+        st.info("Run Topic Modeling + Sentiment + Topic Summaries to generate insights.")
+
+    st.markdown("---")
+
+    # ---------- Download: Executive HTML ----------
+    st.subheader("📄 Export Executive HTML")
+    final_summary = st.session_state.get("final_summary", "")
+
+    def _make_wordcloud_b64():
+        try:
+            from wordcloud import WordCloud
+        except Exception:
+            return None
+        # source: topic keywords -> top terms -> raw text
+        src = None
+        if topic_keywords:
+            try:
+                src = " ".join([w for topic in topic_keywords for w in (topic or []) if isinstance(w, str)])
+            except Exception:
+                src = None
+        if not src:
+            src = st.session_state.get("cleaned_text") or st.session_state.get("raw_text") or ""
+        if not src.strip():
+            return None
+        wc = WordCloud(width=1100, height=420, background_color="white", collocations=False).generate(src)
+        img = wc.to_image()
+        buf = io.BytesIO(); img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+
+    # sentiment counts
+    counts = {"POSITIVE": 0, "NEUTRAL": 0, "NEGATIVE": 0}
+    if has_sent:
+        for r in st.session_state["sentiment_results"]:
+            lab = r.get("label")
+            if lab in counts: counts[lab] += 1
+
+    # topic dist table (mean theta)
+    df_topics = pd.DataFrame()
+    if has_tm:
+        try:
+            from src.topic_modeling import doc_topic_distribution
+            theta = doc_topic_distribution(st.session_state["tm_model"], st.session_state["tm_X"])
+            weights = np.mean(theta, axis=0)
+            n_topics = len(weights)
+            labels_out = [topic_labels_map.get(i) or (topic_labels_list[i] if i < len(topic_labels_list) else f"Topic {i+1}") for i in range(n_topics)]
+            kws_out = [", ".join(k) if isinstance(k, (list,tuple)) else "" for k in (topic_keywords or [[] for _ in range(n_topics)])]
+            df_topics = pd.DataFrame({
+                "Topic": [f"Topic {i+1}" for i in range(n_topics)],
+                "Label": labels_out,
+                "Avg weight": weights,
+                "Keywords": kws_out
+            })
+        except Exception:
+            pass
+
+    wc_b64 = _make_wordcloud_b64()
+
+    # Build HTML
+    ts = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M")
+    parts = []
+    parts.append(f"""<!doctype html><html><head><meta charset="utf-8"><title>NarrativeNexus — Executive Report</title>
+<style>
+body{{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#0e1117;color:#eaf2f6;margin:32px}}
+h1,h2,h3{{margin:.2em 0}} .card{{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px;margin:12px 0;background:#10141B}}
+.badge{{display:inline-block;padding:2px 8px;background:#163227;border:1px solid #2fc48d;border-radius:999px;color:#bdf9de;font-size:12px}}
+table{{border-collapse:collapse;width:100%}} th,td{{border:1px solid rgba(255,255,255,.12);padding:8px;text-align:left}}
+</style></head><body>
+<h1>NarrativeNexus — Executive Report</h1>
+<small>Generated: {ts}</small>
+""")
+
+    if final_summary:
+        parts.append(f"<div class='card'><h2>Executive Summary</h2><p>{final_summary}</p></div>")
+
+    parts.append(f"<div class='card'><h2>Overall Sentiment</h2><p>POS: {counts['POSITIVE']} &nbsp; NEU: {counts['NEUTRAL']} &nbsp; NEG: {counts['NEGATIVE']}</p></div>")
+
+    if not df_topics.empty:
+        parts.append("<div class='card'><h2>Topic Distribution</h2>")
+        parts.append("<table><thead><tr><th>Topic</th><th>Label</th><th>Avg weight</th><th>Keywords</th></tr></thead><tbody>")
+        for _, r in df_topics.iterrows():
+            parts.append(f"<tr><td>{r['Topic']}</td><td>{r['Label']}</td><td>{r['Avg weight']:.3f}</td><td>{r['Keywords']}</td></tr>")
+        parts.append("</tbody></table></div>")
+
+    if topic_summ_rows:
+        parts.append("<div class='card'><h2>Topic Summaries</h2>")
+        for r in topic_summ_rows:
+            tnum = int(r.get("Topic", 0))
+            lbl  = r.get("Label") or topic_labels_map.get(tnum-1) or (topic_labels_list[tnum-1] if 0 <= (tnum-1) < len(topic_labels_list) else f"Topic {tnum}")
+            parts.append(f"<h3>Topic {tnum} <span class='badge'>{lbl}</span></h3>")
+            parts.append(f"<p><b>Keywords:</b> {r.get('Keywords','')}</p>")
+            summary_html = (r.get('Summary') or '').replace('\n', '<br>')
+            parts.append(f"<p>{summary_html}</p>")
+
+        parts.append("</div>")
+
+    if wc_b64:
+        parts.append(f"<div class='card'><h2>Word Cloud</h2><img style='max-width:100%;' src='data:image/png;base64,{wc_b64}'/></div>")
+
+    parts.append("</body></html>")
+    html_bytes = "".join(parts).encode("utf-8")
+
+    st.download_button("📄 Download HTML Report", html_bytes, "narrativenexus_report.html", "text/html", use_container_width=True)
+
 
 def page_dashboard_router():
     try:
@@ -1644,11 +2349,302 @@ def page_dashboard_router():
 
 # --- About Us ---
 def page_about():
-    st.title("ℹ️ About")
-    st.write("""
-    **AI Text Analysis** helps you convert raw text and CSVs into actionable insights.
-    Built with Streamlit, pandas, spaCy and scikit-learn.
-    """)
+    
+    st.markdown("""
+    <div class="main-content-wrapper">
+      <!-- Hero -->
+      <section class="hero-center" style="padding:72px 0 28px;">
+        <h1>About NarrativeNexus</h1>
+        <p>We’re a small team obsessed with turning messy text into crisp, defensible decisions — fast.</p>
+      </section>
+
+      <!-- Mission / What we do -->
+      <section class="section" style="padding-top:48px;">
+        <div class="why-grid">
+          <div class="why-card">
+            <div class="icon">🎯</div>
+            <h4>Our Mission</h4>
+            <p>Remove the friction from text analytics so analysts, PMs, and researchers can move from raw data to executive-ready insights in minutes, not days.</p>
+          </div>
+          <div class="why-card">
+            <div class="icon">🧭</div>
+            <h4>What We Built</h4>
+            <p>An end-to-end workflow: ingest → preprocess → topics → sentiment → hybrid summarization → dashboard & export. Opinionated defaults, sensible metrics.</p>
+          </div>
+          <div class="why-card">
+            <div class="icon">🧪</div>
+            <h4>Design Principles</h4>
+            <p>Fast feedback, graceful fallbacks, transparent metrics, and reproducible outputs. Every step surfaces decisions and the trade-offs behind them.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tech stack -->
+      <section class="section" style="padding-top:24px;">
+        <div class="section-header">
+          <div class="section-kicker">Stack</div>
+          <h2 class="section-title">What’s under the hood</h2>
+          <p class="section-subtitle">Pragmatic, proven libraries — with room to swap components as your needs evolve.</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">Streamlit</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">pandas</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">NumPy</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">scikit-learn</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">spaCy</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">NLTK/VADER</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">HuggingFace (BART/DistilBART)</span>
+          <span class="pill" style="border:1px solid var(--border); padding:8px 12px; border-radius:999px;">Plotly</span>
+        </div>
+      </section>
+
+      <!-- Timeline -->
+      <section class="section" style="padding-top:24px;">
+        <div class="section-header">
+          <div class="section-kicker">Journey</div>
+          <h2 class="section-title">How we got here</h2>
+        </div>
+        <div style="max-width:900px; margin:0 auto;">
+          <div style="display:grid; gap:16px;">
+            <div class="core-fn-card">
+              <h4>🚧 Prototype → Feedback</h4>
+              <p>We validated core flows—upload, clean, topics, sentiment—and cut anything that slowed insight.</p>
+            </div>
+            <div class="core-fn-card">
+              <h4>🧠 Hybrid Summarization</h4>
+              <p>MMR extractive + BART polish for executive-ready summaries with controllable length/quality.</p>
+            </div>
+            <div class="core-fn-card">
+              <h4>📊 Decision-first Dashboard</h4>
+              <p>Topic × sentiment matrices, word clouds, and KPIs — plus one-click report export.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Team (optional avatars) -->
+      <section class="section" style="padding-top:24px;">
+        <div class="section-header">
+          <div class="section-kicker">Team</div>
+          <h2 class="section-title">People behind the pixels</h2>
+        </div>
+        <div class="why-grid">
+          <div class="why-card">
+            <div class="icon">🧑‍💻</div>
+            <h4>Engineering</h4>
+            <p>Models, metrics, and performance. We keep the pipeline robust and transparent.</p>
+          </div>
+          <div class="why-card">
+            <div class="icon">🎨</div>
+            <h4>Product & UX</h4>
+            <p>Clarity over clutter. Every screen answers “what should I do next?”</p>
+          </div>
+          <div class="why-card">
+            <div class="icon">📈</div>
+            <h4>Data & Research</h4>
+            <p>Benchmarking on real-world corpora; tracing tradeoffs for trustworthy decisions.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section" style="padding-top:24px;">
+        <div class="section-header">
+          <div class="section-kicker">FAQ</div>
+          <h2 class="section-title">Common questions</h2>
+        </div>
+        <div style="max-width:900px; margin:0 auto; display:grid; gap:14px;">
+          <div class="core-fn-card">
+            <h4>Is my data stored?</h4>
+            <p>By default, processing runs in-session. You control exports; clear state to remove local artifacts.</p>
+          </div>
+          <div class="core-fn-card">
+            <h4>Can I bring my own models?</h4>
+            <p>Yes — vectorizers and topic models are modular; swap your own HF pipelines or embeddings.</p>
+          </div>
+          <div class="core-fn-card">
+            <h4>How are summaries generated?</h4>
+            <p>We extract high-MMR sentences, then optionally polish with BART/DistilBART for fluency and compression.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contact / CTA -->
+      <section class="section" style="padding-top:12px;">
+        <div class="section-header">
+          <div class="section-kicker">Get in touch</div>
+          <h2 class="section-title">Have feedback or ideas?</h2>
+          <p class="section-subtitle">We’d love to hear what would make NarrativeNexus indispensable for you.</p>
+        </div>
+        <div class="hero-button-wrapper" style="margin-top:24px;">
+          <div data-testid="stButton"><!-- keeps button style -->
+            <a href="?page=Data_Input" target="_self" class="pricing-btn" style="
+              background: var(--brand); color: var(--brand-ink) !important;
+              border-color: var(--brand); font-weight:800;">
+              Try it on your data
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+    
+
+# -------- LOGIN PAGE ---------
+def page_login():
+    users = st.session_state.setdefault("users", {})
+    user = st.session_state.get("user")
+
+    # CLEAN, SAFE CSS — no hiding of Tab internals
+    st.markdown("""
+    <style>
+      .auth-box {
+        max-width: 520px;
+        margin: 48px auto 40px;
+        padding: 40px 32px;
+        background: #12161E;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        box-shadow: 0 8px 30px rgba(0,0,0,.35);
+      }
+      .auth-title {
+        font-size: 32px;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 8px;
+        color: #eaf2f6;
+      }
+      .auth-sub {
+        text-align: center;
+        color: #9fb1bd;
+        font-size: 15px;
+        margin-bottom: 24px;
+      }
+
+      /* Tabs: make bar transparent and add space UNDER it */
+      div[data-testid="stTabs"] { margin-top: 6px; }
+      div[data-testid="stTabs"] > div {      /* tab wrapper */
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      div[data-baseweb="tab-list"]{
+        justify-content: center !important;
+        gap: 12px !important;
+        background: transparent !important;  /* kills the grey bar look */
+        border: 0 !important;
+        box-shadow: none !important;
+        margin-bottom: 20px !important;      /* <-- gap after tabs */
+      }
+      div[data-baseweb="tab"]{
+        background: #1a1f29 !important;
+        border-radius: 999px !important;
+        padding: 8px 18px !important;
+        font-weight: 600 !important;
+        border: none !important;
+      }
+      div[data-baseweb="tab"][aria-selected="true"]{
+        background: linear-gradient(135deg, #50e3a4, #2fc48d) !important;
+        color: #0b1f18 !important;
+      }
+
+      /* Buttons: add space above, keep brand look */
+      .stButton button{
+        background: linear-gradient(135deg, #50e3a4, #2fc48d) !important;
+        color: #0b1f18 !important;
+        border: none !important;
+        font-weight: 800 !important;
+        font-size: 16px !important;
+        border-radius: 999px !important;
+        padding: 12px 0 !important;
+        margin-top: 16px !important;         /* <-- gap before button */
+        box-shadow: 0 6px 16px rgba(80,227,164,.25) !important;
+      }
+      .stButton button:hover{
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(80,227,164,.35) !important;
+      }
+      
+      /* Remove any empty wrapper that appears before the title inside the card */
+    .auth-box > div:first-child:empty { display: none !important; }
+    
+    /* If the first child isn't strictly empty but still renders a box, neutralize it */
+    .auth-box > div:first-child {
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      min-height: 0 !important;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="auth-box">', unsafe_allow_html=True)
+
+    if user:
+        st.markdown('<div class="auth-title">Welcome Back 👋</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="auth-sub">You are logged in as <b>{user.get("name") or user.get("email")}</b></div>', unsafe_allow_html=True)
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.pop("user", None)
+            st.session_state["page"] = "Home"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+
+    st.markdown('<div class="auth-title">Login / Sign up</div>', unsafe_allow_html=True)
+    st.markdown('<div class="auth-sub">Access your NarrativeNexus workspace securely.</div>', unsafe_allow_html=True)
+
+    # Tabs (kept for accessibility; we only styled them)
+    tab_login, tab_signup = st.tabs(["🔐 Login", "✨ Sign up"])
+
+    with tab_login:
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login", use_container_width=True)
+            if submitted:
+                em = (email or "").lower().strip()
+                rec = users.get(em)
+                if not rec or rec.get("password") != password:
+                    st.error("Invalid email or password.")
+                else:
+                    st.session_state["user"] = {"email": em, "name": rec.get("name")}
+                    st.success("Logged in!")
+                    st.session_state["page"] = "Home"
+                    st.rerun()
+
+    with tab_signup:
+        with st.form("signup_form", clear_on_submit=False):
+            name = st.text_input("Name")
+            email = st.text_input("Email")
+            pwd = st.text_input("Password", type="password")
+            confirm = st.text_input("Confirm password", type="password")
+            agree = st.checkbox("I agree to the Terms & Privacy")
+            submitted = st.form_submit_button("Create account", use_container_width=True)
+            if submitted:
+                em = (email or "").lower().strip()
+                if not name or not em or not pwd:
+                    st.error("Please fill all fields.")
+                elif pwd != confirm:
+                    st.error("Passwords do not match.")
+                elif not agree:
+                    st.error("Please accept the Terms & Privacy.")
+                elif em in users:
+                    st.error("Account already exists. Try logging in.")
+                else:
+                    users[em] = {"name": name.strip(), "password": pwd}
+                    st.session_state["users"] = users
+                    st.session_state["user"] = {"email": em, "name": name.strip()}
+                    st.success("Account created!")
+                    st.session_state["page"] = "Home"
+                    st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+
 
 
 # ---------------- MAIN ----------------
@@ -1665,24 +2661,56 @@ def main():
         "Topic Modeling": page_topics,
         "Sentiment": page_sentiment,
         "Summarization": page_summarization,
-        "Dashboard": page_dashboard_local_fallback,
+        "Dashboard": page_dashboard_router,
         "About": page_about,
+        "Login": page_login,
     }
     routes.get(page, lambda: st.write("Page not found."))()
 
 if __name__ == "__main__":
     main()
+    
 
-
+# --- Footer ---
 st.markdown(
     """
-    <hr style="opacity:.08; margin-top:36px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; color:#9fb1bd;">
-      <div>© 2025 NarrativeNexus</div>
-      <div style="display:flex; gap:14px;">
-        <a href="#" style="color:#9fb1bd; text-decoration:none;">Features</a>
-        <a href="#" style="color:#9fb1bd; text-decoration:none;">Contact</a>
-        <a href="#" style="color:#9fb1bd; text-decoration:none;">GitHub</a>
+    <div class="footer">
+      <div class="footer-inner">
+        <div>
+          <div class="logo">NarrativeNexus <small>AI</small></div>
+          <div class="tiny">Turning messy text into crisp, defensible decisions.</div>
+          <div class="social">
+            <a href="#" target="_self">🌐</a>
+            <a href="#" target="_self">🐙</a>
+            <a href="#" target="_self">💬</a>
+          </div>
+        </div>
+        <div>
+          <div class="kicker">Product</div>
+          <div><a href="?page=Data_Input" target="_self">Data Input</a></div>
+          <div><a href="?page=Topic_Modeling" target="_self">Topic Modeling</a></div>
+          <div><a href="?page=Sentiment" target="_self">Sentiment</a></div>
+          <div><a href="?page=Summarization" target="_self">Summarization</a></div>
+          <div><a href="?page=Dashboard" target="_self">Dashboard</a></div>
+        </div>
+        <div>
+          <div class="kicker">Company</div>
+          <div><a href="?page=About" target="_self">About</a></div>
+          <div><a href="?page=Login" target="_self">Login / Sign up</a></div>
+          <div><a href="#pricing" target="_self">Pricing</a></div>
+        </div>
+        <div>
+          <div class="kicker">Docs</div>
+          <div><a href="#" target="_self">Getting started</a></div>
+          <div><a href="#" target="_self">FAQ</a></div>
+          <div><a href="#" target="_self">Changelog</a></div>
+        </div>
+      </div>
+      <div class="footer-inner" style="border-top:1px solid var(--border); padding-top:14px;">
+        <div class="bottom">
+          <span>© 2025 NarrativeNexus</span>
+          <span><a href="#" target="_self">Terms</a> · <a href="#" target="_self">Privacy</a></span>
+        </div>
       </div>
     </div>
     """,
