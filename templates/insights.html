@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Insights - Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: rgba(255, 255, 255, 0.9);
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --shadow-light: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Floating Particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+            bottom: -100px;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Modern Header */
+        header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            color: white;
+            padding: 3rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -50%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 1s ease-out;
+        }
+        
+        header p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+        
+        /* Modern Navigation */
+        .nav {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .nav .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--glass-border);
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 3rem 0;
+            position: relative;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            text-align: center;
+            margin: 4rem 0 3rem;
+        }
+        
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 16px;
+            animation: fadeInUp 1s ease-out both;
+        }
+        
+        .section-header p {
+            font-size: 1.125rem;
+            color: rgba(255, 255, 255, 0.8);
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        /* Modern Cards */
+        .insights-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--shadow-light);
+            margin: 3rem 0;
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease-out both;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .insights-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .insights-section:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: var(--shadow);
+        }
+        
+        .insights-section:hover::before {
+            left: 100%;
+        }
+        
+        .insights-section h2 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .insights-content {
+            margin-top: 1.5rem;
+            white-space: pre-line;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+
+        .insights-highlight {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            border-left: 4px solid var(--accent);
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 12px;
+            backdrop-filter: blur(15px);
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .topic-section {
+            background-color: var(--light);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .topic-title {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .topic-words {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+            margin: 3rem 0;
+        }
+
+        .topic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .topic-card {
+            background-color: var(--light);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .topic-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .topic-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            border-bottom: 2px solid rgba(67, 97, 238, 0.2);
+            padding-bottom: 0.5rem;
+        }
+
+        .word-tag {
+            display: inline-block;
+            background-color: rgba(67, 97, 238, 0.1);
+            color: var(--primary);
+            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            margin: 0.2rem;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            cursor: default;
+        }
+
+        .word-tag:hover {
+            background-color: rgba(67, 97, 238, 0.2);
+            transform: scale(1.05);
+        }
+
+        .section-title {
+            margin: 3rem 0 1rem;
+            color: var(--primary);
+            text-align: center;
+        }
+
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        .flash-message {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .flash-message.success {
+            background-color: rgba(74, 222, 128, 0.2);
+            border: 1px solid var(--success);
+            color: #166534;
+        }
+
+        .flash-message.error {
+            background-color: rgba(244, 63, 94, 0.2);
+            border: 1px solid var(--danger);
+            color: #9f1239;
+        }
+
+        footer {
+            background-color: var(--dark);
+            color: var(--light);
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 4rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--primary);
+            color: var(--light);
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary);
+        }
+
+        .insight-card {
+            background-color: var(--light);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+            animation: fadeIn 0.5s ease-in-out;
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .insight-icon {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+
+        .insight-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .insight-content {
+            margin-top: 0.5rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Ensure text content stays within boundaries */
+        p, div {
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Particles -->
+    <div class="particles"></div>
+    
+    <!-- Modern Header -->
+    <header>
+        <div class="container">
+            <h1><i class="fas fa-lightbulb"></i> AI Insights</h1>
+            <p>Discover actionable insights with advanced AI analysis</p>
+        </div>
+    </header>
+
+    <!-- Modern Navigation -->
+    <nav class="nav">
+        <div class="container">
+            <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            <a href="/visualization{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+                <i class="fas fa-chart-bar"></i> Visualization
+            </a>
+            <a href="/summary{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+                <i class="fas fa-file-alt"></i> Summary
+            </a>
+            <a href="/sentiment{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+                <i class="fas fa-heart"></i> Sentiment
+            </a>
+            <a href="/insights{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link active">
+                <i class="fas fa-lightbulb"></i> Insights
+            </a>
+            <a href="/export-pdf{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="flash-message {{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ 'success' if category == 'message' else category }}">
+                                <i class="fas fa-info-circle"></i> {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <div class="section-header">
+                <h2><i class="fas fa-brain"></i> AI-Generated Insights</h2>
+                <p>Actionable intelligence extracted from your data analysis</p>
+            </div>
+            
+            <section class="insights-section">
+                <h2><i class="fas fa-lightbulb"></i> Key Insights</h2>
+                
+                <div class="insights-content">
+                    {% if insights %}
+                        {{ insights }}
+                    {% else %}
+                        <div class="insights-highlight">
+                            💡 No insights available. Please upload a file for analysis to discover actionable intelligence from your data.
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+
+        {% if lda_top_words %}
+        <section class="topic-section">
+            <h2 class="section-title">Topic Modeling (LDA)</h2>
+            <p class="text-center">Latent Dirichlet Allocation identifies hidden topics in your data</p>
+            
+            <div class="topic-grid">
+                {% for topic in lda_top_words %}
+                <div class="topic-card">
+                    <h3 class="topic-title">Topic {{ loop.index }}</h3>
+                    {% for word in topic %}
+                    <span class="word-tag">{{ word }}</span>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if nmf_top_words %}
+        <section class="topic-section">
+            <h2 class="section-title">Topic Modeling (NMF)</h2>
+            <p class="text-center">Non-negative Matrix Factorization reveals underlying themes in your text data</p>
+            
+            <div class="topic-grid">
+                {% for topic in nmf_top_words %}
+                <div class="topic-card">
+                    <h3 class="topic-title">Topic {{ loop.index }}</h3>
+                    {% for word in topic %}
+                    <span class="word-tag">{{ word }}</span>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        </div>
+    </div>
+
+    <script>
+        // Particle Animation
+        function createParticles() {
+            const particlesContainer = document.querySelector('.particles');
+            if (!particlesContainer) return;
+            
+            setInterval(() => {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.cssText = `
+                    left: ${Math.random() * 100}%;
+                    width: ${Math.random() * 6 + 4}px;
+                    height: ${Math.random() * 6 + 4}px;
+                    animation-duration: ${Math.random() * 10 + 10}s;
+                    animation-delay: ${Math.random() * 2}s;
+                `;
+                
+                particlesContainer.appendChild(particle);
+                
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 20000);
+            }, 800);
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start particle animation
+            createParticles();
+            
+            // Animate word tags
+            const wordTags = document.querySelectorAll('.word-tag');
+            
+            wordTags.forEach((tag, index) => {
+                tag.style.opacity = '0';
+                tag.style.transform = 'translateY(10px)';
+                
+                setTimeout(() => {
+                    tag.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    tag.style.opacity = '1';
+                    tag.style.transform = 'translateY(0)';
+                }, 50 * index);
+            });
+            
+            // Add navigation hover effects
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateY(-2px) scale(1.05)';
+                    }
+                });
+                
+                link.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateY(0) scale(1)';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

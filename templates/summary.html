@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Analysis Summary - AI Analytics Dashboard</title>
+  <!-- fonts & icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+        --primary: #6366f1;
+        --secondary: #8b5cf6;
+        --accent: #06b6d4;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --dark: #1e293b;
+        --light: #f8fafc;
+        --glass: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --text-light: rgba(255, 255, 255, 0.9);
+        --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        --shadow-light: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+    
+    body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: var(--text-primary);
+        line-height: 1.6;
+        overflow-x: hidden;
+    }
+    
+    .particles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: -1;
+    }
+    
+    .particle {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 20s infinite linear;
+        bottom: -100px;
+    }
+    
+    @keyframes float {
+        0% {
+            transform: translateY(100vh) rotate(0deg);
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(-100px) rotate(360deg);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes fadeInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .container {
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+    
+    header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--glass-border);
+        color: white;
+        padding: 3rem 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    header h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.8) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: fadeInUp 1s ease-out;
+    }
+    
+    header p {
+        font-size: 1.25rem;
+        opacity: 0.9;
+        animation: fadeInUp 1s ease-out 0.2s both;
+    }
+    
+    nav.nav {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1rem 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+    }
+    
+    nav .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        padding: 12px 20px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .nav-link:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: var(--glass-border);
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .nav-link.active {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: white;
+        font-weight: 600;
+    }
+    
+    .main-content {
+        padding: 3rem 0;
+    }
+    
+    .summary-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: var(--shadow-light);
+        margin: 3rem 0;
+        transition: all 0.3s ease;
+        animation: fadeInUp 1s ease-out both;
+    }
+    /* Remove old compressed styles - they are now properly defined below */
+    .spinner{width:44px;height:44px;border-radius:50%;border:4px solid rgba(0,0,0,0.08);border-top-color:var(--primary);animation:spin 1s linear infinite;margin:0 auto 1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    
+    .summary-section:hover {
+        transform: translateY(-8px);
+        background: rgba(255, 255, 255, 0.15);
+        box-shadow: var(--shadow);
+    }
+    
+    .summary-header h2 {
+        color: white;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+    }
+    
+    .summary-header p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.1rem;
+    }
+    
+    .summary-content {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.1rem;
+        line-height: 1.7;
+    }
+    
+    .summary-content p {
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 1.5rem;
+    }
+    
+    .summary-subheading {
+        color: var(--accent);
+        font-size: 1.3rem;
+        margin: 2rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(6, 182, 212, 0.2);
+        font-weight: 600;
+    }
+    
+    .summary-highlight {
+        color: var(--accent);
+        font-weight: 600;
+        background: rgba(6, 182, 212, 0.2);
+        padding: 2px 8px;
+        border-radius: 6px;
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        padding: 1.5rem;
+        border-radius: 16px;
+        text-align: center;
+        box-shadow: var(--shadow-light);
+        border-top: 3px solid var(--accent);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.9rem;
+    }
+    
+    .key-insights {
+        background: rgba(6, 182, 212, 0.1);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        transition: all 0.3s ease;
+    }
+    
+    .key-insights:hover {
+        transform: translateY(-4px);
+        background: rgba(6, 182, 212, 0.15);
+    }
+    
+    .key-insights h3 {
+        color: var(--accent);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .key-insights ul {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .key-insights li {
+        margin: 0.8rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .key-insights li:before {
+        content: '•';
+        color: var(--accent);
+        font-weight: bold;
+        position: absolute;
+        left: 0;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        padding: 12px 24px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: 2rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        text-decoration: none;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .loading p {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .spinner {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+  </style>
+</head>
+<body>
+    <!-- Floating Particles -->
+    <div class="particles"></div>
+    
+    <header>
+      <div class="container">
+        <h1><i class="fas fa-file-alt"></i> Analysis Summary</h1>
+        <p>Comprehensive AI-powered overview of your data insights</p>
+      </div>
+    </header>
+    
+    <nav class="nav">
+      <div class="container">
+        <a href="/" class="nav-link"><i class="fas fa-home"></i> Home</a>
+        <a href="/visualization{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+            <i class="fas fa-chart-bar"></i> Visualization
+        </a>
+        <a href="/summary{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link active">
+            <i class="fas fa-file-alt"></i> Summary
+        </a>
+        <a href="/sentiment{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+            <i class="fas fa-heart"></i> Sentiment
+        </a>
+        <a href="/insights{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+            <i class="fas fa-lightbulb"></i> Insights
+        </a>
+        <a href="/export-pdf{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}" class="nav-link">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+      </div>
+    </nav>
+    
+    <div class="main-content">
+        <div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-messages">
+        {% for category, message in messages %}
+          <li class="flash-message {{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if summary %}
+    <section class="summary-section">
+      <div class="summary-header">
+        <h2><i class="fas fa-chart-line"></i> Data Analysis Summary</h2>
+        <p>AI-powered insights from your dataset</p>
+      </div>
+      
+      <div class="summary-content">
+        {% set paragraphs = summary.split('\n\n') if summary else [''] %}
+        {% for paragraph in paragraphs %}
+          {% if paragraph.strip() %}
+            {% set cleaned_para = paragraph.strip() %}
+            {# Check if paragraph contains markdown-style headings #}
+            {% if cleaned_para.startswith('**') and cleaned_para.endswith('**') %}
+              {# Full line heading #}
+              <h3 class="summary-subheading">{{ cleaned_para.replace('**', '').strip() }}</h3>
+            {% elif '**' in cleaned_para %}
+              {# Paragraph with embedded headings #}
+              {% set parts = cleaned_para.split('**') %}
+              <p>
+                {% for part in parts %}
+                  {% if loop.index is odd %}
+                    {{ part }}
+                  {% else %}
+                    <strong class="summary-highlight">{{ part }}</strong>
+                  {% endif %}
+                {% endfor %}
+              </p>
+            {% else %}
+              {# Regular paragraph #}
+              <p>{{ cleaned_para }}</p>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if classification_metrics %}
+    <section class="summary-section">
+      <div class="summary-header">
+        <h2><i class="fas fa-cogs"></i> Model Performance</h2>
+        <p>Classification metrics for your data</p>
+      </div>
+      
+      <div class="stats-grid">
+        {% for metric, value in classification_metrics.items() %}
+          <div class="stat-card">
+            <div class="stat-number">{{ "%.3f"|format(value) if value is number else value }}</div>
+            <div class="stat-label">{{ metric|replace('_',' ')|title }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if sentiment_counts %}
+    <section class="summary-section">
+      <div class="summary-header">
+        <h2><i class="fas fa-smile"></i> Sentiment Overview</h2>
+        <p>Distribution of sentiment in your data</p>
+      </div>
+      
+      <div class="key-insights">
+        <h3><i class="fas fa-lightbulb"></i> Key Sentiment Insights</h3>
+        <ul>
+          {% set total_sentiment = sentiment_counts.values() | sum %}
+          {% set positive_total = (sentiment_counts.get('positive', 0) + sentiment_counts.get('very positive', 0)) %}
+          {% set negative_total = (sentiment_counts.get('negative', 0) + sentiment_counts.get('very negative', 0)) %}
+          {% set neutral_total = sentiment_counts.get('neutral', 0) %}
+          
+          {% if positive_total > negative_total and positive_total > neutral_total %}
+            <li>Overall sentiment is predominantly positive ({{ "%.1f"|format((positive_total / total_sentiment) * 100) }}% of responses)</li>
+          {% elif negative_total > positive_total and negative_total > neutral_total %}
+            <li>Overall sentiment tends toward negative ({{ "%.1f"|format((negative_total / total_sentiment) * 100) }}% of responses)</li>
+          {% else %}
+            <li>Sentiment distribution is relatively balanced across categories</li>
+          {% endif %}
+          
+          {% if sentiment_counts.get('happy', 0) > 0 %}
+            <li>{{ sentiment_counts.get('happy', 0) }} responses show explicit happiness indicators</li>
+          {% endif %}
+          
+          {% if sentiment_counts.get('trust', 0) > 0 %}
+            <li>{{ sentiment_counts.get('trust', 0) }} responses indicate trust and confidence</li>
+          {% endif %}
+          
+          <li>Total of {{ total_sentiment }} responses analyzed for sentiment patterns</li>
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    <div style="text-align:center;margin:24px 0">
+      <a class="btn" href="/visualization{% if request.view_args.filename %}/{{ request.view_args.filename }}{% endif %}"><i class="fas fa-chart-bar"></i> View Detailed Visualizations</a>
+    </div>
+
+  {% else %}
+    <section class="summary-section">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading analysis summary...</p>
+        <p>No analysis results found. Please upload a file first.</p>
+      </div>
+      <div style="text-align:center;margin:24px 0">
+        <a class="btn" href="/"><i class="fas fa-upload"></i> Upload Data File</a>
+      </div>
+    </section>
+  {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // Particle Animation
+        function createParticles() {
+            const particlesContainer = document.querySelector('.particles');
+            if (!particlesContainer) return;
+            
+            setInterval(() => {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.cssText = `
+                    left: ${Math.random() * 100}%;
+                    width: ${Math.random() * 6 + 4}px;
+                    height: ${Math.random() * 6 + 4}px;
+                    animation-duration: ${Math.random() * 10 + 10}s;
+                    animation-delay: ${Math.random() * 2}s;
+                `;
+                
+                particlesContainer.appendChild(particle);
+                
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 20000);
+            }, 800);
+        }
+        
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            
+            // Add navigation hover effects
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateY(-2px) scale(1.05)';
+                    }
+                });
+                
+                link.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateY(0) scale(1)';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

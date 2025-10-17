@@ -1,0 +1,78 @@
+{
+  "plots": {
+    "sentiment_distribution": "static/plots/sentiment_distribution.png",
+    "wordcloud_overall": "static/plots/wordcloud_overall.png",
+    "wordcloud_positive": "static/plots/wordcloud_positive.png",
+    "wordcloud_neutral": "static/plots/wordcloud_neutral.png",
+    "wordcloud_negative": "static/plots/wordcloud_negative.png",
+    "difficulty_distribution": "static/plots/difficulty_distribution.png",
+    "attendance_distribution": "static/plots/attendance_distribution.png",
+    "feature_correlation": "static/plots/feature_correlation.png"
+  },
+  "summary_tab": {
+    "summary_text": "good very good and helpful best good very good he is good teacher good teacher good teacher good teacher good i like this very much. good teacher such a cool teacher.nice to have in d class he is much better faculty and very knowledgeable good faculty she is good well he is a good teacher he is good sir is good he is ok her teaching is very good for us good he is a good teacher good teacher he is my best teacher good he is very nice person good faculty he is good . good he is a good teacher good he is a very good and one of the best teacher."
+  },
+  "other_data": {},
+  "sentiment_counts": {
+    "very positive": 346153,
+    "positive": 1393171,
+    "neutral": 142399,
+    "negative": 88002,
+    "very negative": 11130,
+    "happy": 11395,
+    "sad": 1565,
+    "angry": 10582,
+    "surprised": 133,
+    "fear": 984,
+    "disgust": 367,
+    "trust": 1866
+  },
+  "difficulty_counts": {
+    "3": 1247,
+    "4": 941,
+    "1": 804,
+    "5": 511,
+    "2": 474
+  },
+  "attendance_counts": {
+    "0": 1026,
+    "3": 918,
+    "1": 783,
+    "4": 649,
+    "2": 601
+  },
+  "correlation_data": {
+    "features": [
+      "Unnamed: 0",
+      "Rating",
+      "totalwords",
+      "subj-score"
+    ],
+    "matrix": [
+      [
+        1.0,
+        -0.02,
+        -0.01,
+        -0.06
+      ],
+      [
+        -0.02,
+        1.0,
+        -0.05,
+        0.11
+      ],
+      [
+        -0.01,
+        -0.05,
+        1.0,
+        -0.02
+      ],
+      [
+        -0.06,
+        0.11,
+        -0.02,
+        1.0
+      ]
+    ]
+  }
+}

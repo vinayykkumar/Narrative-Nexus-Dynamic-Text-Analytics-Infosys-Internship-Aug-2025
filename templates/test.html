@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Frontend Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        img { max-width: 300px; margin: 10px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Diagnostic Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Basic HTML Loading</h2>
+        <p class="success">✅ This page loaded successfully</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Static File Loading</h2>
+        <p>Testing if images can load from static directory:</p>
+        
+        <div>
+            <h3>Sentiment Distribution:</h3>
+            <img src="/static/plots/sentiment_distribution.png" 
+                 alt="Sentiment Distribution" 
+                 onload="this.style.border='2px solid green'; this.nextElementSibling.innerHTML='✅ Loaded successfully';"
+                 onerror="this.style.border='2px solid red'; this.nextElementSibling.innerHTML='❌ Failed to load';">
+            <p id="sentiment-status">Loading...</p>
+        </div>
+        
+        <div>
+            <h3>Word Cloud Overall:</h3>
+            <img src="/static/plots/wordcloud_overall.png" 
+                 alt="Word Cloud Overall" 
+                 onload="this.style.border='2px solid green'; this.nextElementSibling.innerHTML='✅ Loaded successfully';"
+                 onerror="this.style.border='2px solid red'; this.nextElementSibling.innerHTML='❌ Failed to load';">
+            <p id="wordcloud-status">Loading...</p>
+        </div>
+        
+        <div>
+            <h3>Confusion Matrix:</h3>
+            <img src="/static/plots/confusion_matrix.png" 
+                 alt="Confusion Matrix" 
+                 onload="this.style.border='2px solid green'; this.nextElementSibling.innerHTML='✅ Loaded successfully';"
+                 onerror="this.style.border='2px solid red'; this.nextElementSibling.innerHTML='❌ Failed to load';">
+            <p id="confusion-status">Loading...</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: JavaScript Console</h2>
+        <p>Open your browser's developer console (F12) and check for any error messages.</p>
+        <p>Common issues:</p>
+        <ul>
+            <li>404 errors for missing images</li>
+            <li>CORS errors</li>
+            <li>JavaScript syntax errors</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Network Tab</h2>
+        <p>In your browser's developer tools (F12), go to the Network tab and refresh this page.</p>
+        <p>Look for:</p>
+        <ul>
+            <li>Red entries (failed requests)</li>
+            <li>404 status codes</li>
+            <li>Slow loading resources</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log("Frontend test page loaded successfully");
+        
+        // Test if we can make requests
+        fetch('/static/plots/sentiment_distribution.png')
+            .then(response => {
+                if (response.ok) {
+                    console.log("✅ Static file serving works");
+                } else {
+                    console.log("❌ Static file serving failed:", response.status);
+                }
+            })
+            .catch(error => {
+                console.log("❌ Network error:", error);
+            });
+    </script>
+</body>
+</html>
+

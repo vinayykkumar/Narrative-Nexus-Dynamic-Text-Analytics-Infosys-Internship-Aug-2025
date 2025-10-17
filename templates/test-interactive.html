@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Interactive Animations Test</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.min.js"></script>
+    
+    <!-- Our enhanced scripts -->
+    <script src="/static/js/enhanced-charts.js"></script>
+    <script src="/static/js/interactive-wordcloud.js"></script>
+    
+    <style>
+        body { font-family: 'Arial', sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .test-section { background: white; margin: 20px 0; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .chart-container { width: 100%; height: 400px; position: relative; }
+        .test-title { color: #4361ee; font-size: 24px; margin-bottom: 20px; }
+        .test-description { color: #666; margin-bottom: 15px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Interactive Animations Test Page</h1>
+        <p>This page tests all interactive and animated features to verify they're working correctly.</p>
+        
+        <div id="status-container"></div>
+        
+        <div class="test-section">
+            <h2 class="test-title">📊 Enhanced Interactive Charts</h2>
+            <p class="test-description">These should show animated charts with hover effects, smooth transitions, and interactive tooltips.</p>
+            
+            <div class="grid">
+                <div>
+                    <h3>Sentiment Distribution</h3>
+                    <div id="test-sentiment-chart" class="chart-container"></div>
+                    <div class="loader" data-loader-for="sentiment"><div style="width:40px;height:40px;border:3px solid #f3f3f3;border-top:3px solid #4361ee;border-radius:50%;animation:spin 1s linear infinite;"></div></div>
+                </div>
+                
+                <div>
+                    <h3>Sample Bar Chart</h3>
+                    <div id="test-difficulty-chart" class="chart-container"></div>
+                    <div class="loader" data-loader-for="difficulty"><div style="width:40px;height:40px;border:3px solid #f3f3f3;border-top:3px solid #4361ee;border-radius:50%;animation:spin 1s linear infinite;"></div></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2 class="test-title">☁️ Interactive Word Clouds</h2>
+            <p class="test-description">These should show animated word clouds with particle effects, hover tooltips, and click animations.</p>
+            
+            <div class="grid">
+                <div>
+                    <h3>Sample Word Cloud</h3>
+                    <div id="test-wordcloud" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test status tracking
+        const statusContainer = document.getElementById('status-container');
+        const testResults = [];
+        
+        function addStatus(message, isSuccess = true) {
+            testResults.push({message, isSuccess});
+            updateStatusDisplay();
+        }
+        
+        function updateStatusDisplay() {
+            statusContainer.innerHTML = testResults.map(result => 
+                `<div class="status ${result.isSuccess ? 'success' : 'error'}">${result.message}</div>`
+            ).join('');
+        }
+        
+        // Helper functions
+        function showLoader(key) {
+            const loader = document.querySelector(`[data-loader-for="${key}"]`);
+            if (loader) loader.style.display = 'flex';
+        }
+        
+        function hideLoader(key) {
+            const loader = document.querySelector(`[data-loader-for="${key}"]`);
+            if (loader) loader.style.display = 'none';
+        }
+        
+        // Test Chart.js functionality
+        async function testChartJS() {
+            try {
+                const ctx = document.createElement('canvas');
+                document.getElementById('test-sentiment-chart').appendChild(ctx);
+                
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Positive', 'Neutral', 'Negative'],
+                        datasets: [{
+                            data: [45, 30, 25],
+                            backgroundColor: ['#22c55e', '#64748b', '#ef4444'],
+                            borderWidth: 2,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 2000,
+                            easing: 'easeOutBounce'
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+                
+                addStatus('✅ Chart.js library working - Interactive charts available');
+                hideLoader('sentiment');
+            } catch (error) {
+                addStatus('❌ Chart.js error: ' + error.message, false);
+                hideLoader('sentiment');
+            }
+        }
+        
+        // Test Enhanced Charts
+        async function testEnhancedCharts() {
+            if (window.EnhancedCharts) {
+                try {
+                    // Inject styles
+                    window.EnhancedCharts.injectEnhancedStyles();
+                    addStatus('✅ Enhanced Charts library loaded successfully');
+                    
+                    // Test enhanced functions exist
+                    if (typeof window.EnhancedCharts.drawEnhancedSentimentChart === 'function') {
+                        addStatus('✅ Enhanced chart functions available');
+                    }
+                } catch (error) {
+                    addStatus('❌ Enhanced Charts error: ' + error.message, false);
+                }
+            } else {
+                addStatus('❌ Enhanced Charts library not loaded', false);
+            }
+        }
+        
+        // Test D3.js and Word Clouds
+        async function testWordClouds() {
+            if (window.d3 && window.InteractiveWordCloud) {
+                try {
+                    const wordcloud = new InteractiveWordCloud('#test-wordcloud', {
+                        width: 600,
+                        height: 400
+                    });
+                    
+                    // Create with sample data
+                    const sampleWords = [
+                        {word: 'Interactive', weight: 1.0},
+                        {word: 'Animated', weight: 0.9},
+                        {word: 'Visualization', weight: 0.8},
+                        {word: 'Charts', weight: 0.7},
+                        {word: 'Wordcloud', weight: 0.6},
+                        {word: 'Data', weight: 0.5},
+                        {word: 'Analysis', weight: 0.4},
+                        {word: 'Beautiful', weight: 0.3}
+                    ];
+                    
+                    // Simulate the wordcloud creation process
+                    wordcloud.words = sampleWords;
+                    wordcloud.initializeLayout();
+                    wordcloud.render();
+                    
+                    addStatus('✅ Interactive Word Clouds working');
+                } catch (error) {
+                    addStatus('❌ Word Cloud error: ' + error.message, false);
+                }
+            } else {
+                addStatus('❌ D3.js or InteractiveWordCloud not available', false);
+            }
+        }
+        
+        // Test bar chart
+        async function testBarChart() {
+            try {
+                const ctx = document.createElement('canvas');
+                document.getElementById('test-difficulty-chart').appendChild(ctx);
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Easy', 'Medium', 'Hard'],
+                        datasets: [{
+                            data: [30, 45, 25],
+                            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1500,
+                            easing: 'easeOutElastic'
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+                
+                addStatus('✅ Animated bar charts working');
+                hideLoader('difficulty');
+            } catch (error) {
+                addStatus('❌ Bar chart error: ' + error.message, false);
+                hideLoader('difficulty');
+            }
+        }
+        
+        // Run all tests
+        document.addEventListener('DOMContentLoaded', async () => {
+            addStatus('🚀 Starting interactive features test...');
+            
+            // Test libraries
+            if (window.Chart) {
+                addStatus('✅ Chart.js library loaded');
+                await testChartJS();
+                await testBarChart();
+            } else {
+                addStatus('❌ Chart.js library not loaded', false);
+            }
+            
+            if (window.d3) {
+                addStatus('✅ D3.js library loaded');
+            } else {
+                addStatus('❌ D3.js library not loaded', false);
+            }
+            
+            // Test our enhanced features
+            await testEnhancedCharts();
+            await testWordClouds();
+            
+            // Summary
+            const successCount = testResults.filter(r => r.isSuccess).length;
+            const totalCount = testResults.length;
+            
+            if (successCount === totalCount) {
+                addStatus(`🎉 All tests passed! (${successCount}/${totalCount}) - Interactive animations are working perfectly!`);
+            } else {
+                addStatus(`⚠️ Some tests failed (${successCount}/${totalCount}) - Check the issues above`, false);
+            }
+        });
+        
+        // Add CSS for spinning animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { to { transform: rotate(360deg); } } .loader { display: flex; align-items: center; justify-content: center; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); }';
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
