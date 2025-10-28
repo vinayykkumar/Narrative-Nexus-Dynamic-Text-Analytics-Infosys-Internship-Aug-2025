@@ -18,28 +18,6 @@
 
 ---
 
-## 🖼️ UI Preview
-
-### 🏠 Landing Page
-<div align="center">
-  <img src="./assets/landing-page.png" alt="Landing Page" width="80%">
-  <p><i>Modern hero section with feature highlights and quick-start call-to-action</i></p>
-</div>
-
-### 📤 Upload Page
-<div align="center">
-  <img src="./assets/upload-page.png" alt="Upload Page" width="80%">
-  <p><i>Drag-and-drop file upload interface with CSV/TXT support and column selection</i></p>
-</div>
-
-### 📊 Analysis Dashboard
-<div align="center">
-  <img src="./assets/analysis-page.png" alt="Analysis Dashboard" width="80%">
-  <p><i>Interactive dashboard with sentiment analysis, topic modeling, and real-time visualizations</i></p>
-</div>
-
----
-
 ## 🚀 Key Features
 
 Sentiment Analysis – Multi-model detection with VADER and ensemble methods
